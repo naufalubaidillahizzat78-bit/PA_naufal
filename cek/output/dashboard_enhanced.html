@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Academic Clustering Dashboard · by Naufal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FFFFFF;--surface:#FFFFFF;--surface2:#F5F3FF;--border:#F0F0F0;
+  --text:#566A7F;--muted:#8E9BAE;--dim:#A8B4C2;
+  --blue:#7367F0;--blue-hover:#5E50EE;--accent:#00CFE8;
+  --green:#28C76F;--yellow:#FF9F43;--orange:#FF9F43;--red:#EA5455;
+  --font:'DM Sans',sans-serif;--serif:'DM Serif Display',serif;--mono:'JetBrains Mono',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+a{color:var(--blue);text-decoration:none}
+/* ── Layout ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;flex-shrink:0;background:#F5F3FF;
+  border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.main{flex:1;overflow-x:hidden}
+/* ── Sidebar ── */
+.sb-logo{padding:24px 20px 16px}
+.sb-logo-title{font-family:var(--serif);font-size:1.15rem;color:var(--blue);line-height:1.2}
+.sb-logo-title span{color:var(--blue-hover)}
+.sb-byline{font-family:var(--mono);font-size:.65rem;color:var(--blue);opacity:.6;margin-top:4px;letter-spacing:.08em}
+.sb-divider{border:none;border-top:1px solid var(--border);margin:8px 16px}
+.sb-nav{padding:4px 10px}
+.sb-nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;
+  font-size:.83rem;color:var(--muted);cursor:pointer;transition:all .15s;border:none;
+  background:none;width:100%;text-align:left}
+.sb-nav-item:hover{background:rgba(94,80,238,.06);color:var(--blue-hover)}
+.sb-nav-item.active{background:rgba(94,80,238,.12);color:var(--blue-hover);font-weight:600}
+.sb-nav-icon{font-size:.95rem;width:18px;text-align:center}
+.sb-info{padding:14px 20px;margin-top:auto;border-top:1px solid var(--border)}
+.sb-info-row{font-size:.72rem;color:var(--dim);line-height:2;font-family:var(--mono)}
+.sb-info-row b{color:var(--muted)}
+/* ── Page ── */
+.page{display:none;padding:28px 32px 48px}
+.page.active{display:block}
+/* ── Hero ── */
+.hero{background:linear-gradient(135deg,#F5F3FF,#E8E4FF);
+  border:1px solid var(--border);border-radius:16px;padding:28px 36px;
+  margin-bottom:28px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-80px;right:-80px;width:320px;height:320px;
+  background:radial-gradient(circle,rgba(115,103,240,.15) 0%,transparent 70%);border-radius:50%}
+.hero-title{font-family:var(--serif);font-size:2.2rem;color:var(--blue);line-height:1.1}
+.hero-title em{color:var(--blue-hover);font-style:normal}
+.hero-sub{color:var(--text);font-size:.88rem;margin-top:10px;font-weight:300}
+.hero-tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+.hero-tag{background:#FFFFFF;border:1px solid rgba(115,103,240,.25);
+  color:var(--blue);padding:3px 12px;border-radius:20px;font-size:.73rem;font-weight:500}
+.hero-byline{position:absolute;bottom:16px;right:22px;font-family:var(--mono);
+  font-size:.68rem;color:rgba(115,103,240,.5);letter-spacing:.1em}
+/* ── Metrics ── */
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;position:relative;overflow:hidden;transition:border-color .2s;
+  box-shadow: 0 4px 12px #EAEAEA;}
+.metric-card:hover{border-color:var(--blue-hover)}
+.metric-accent{position:absolute;top:0;left:0;width:3px;height:100%;border-radius:12px 0 0 12px}
+.metric-val{font-family:var(--serif);font-size:1.8rem;color:var(--blue);line-height:1}
+.metric-lbl{font-size:.71rem;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.06em}
+/* ── Section header ── */
+.section-h{font-family:var(--serif);font-size:1.2rem;color:var(--text);margin:28px 0 16px;
+  padding-bottom:8px;border-bottom:1px solid var(--border)}
+.section-h em{color:var(--blue);font-style:normal}
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;
+  box-shadow: 0 4px 12px #EAEAEA;}
+.card-title{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:14px;letter-spacing:.03em}
+/* ── Grid ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+/* ── Charts ── */
+.chart-img{width:100%;border-radius:8px;display:block}
+/* ── Tabs ── */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:18px;
+  background:var(--surface);padding:5px;border-radius:10px;border:1px solid var(--border)}
+.tab-btn{padding:7px 16px;border-radius:7px;border:none;background:none;cursor:pointer;
+  font-size:.82rem;font-weight:500;color:var(--muted);transition:all .15s;font-family:var(--font)}
+.tab-btn:hover{color:var(--blue)}
+.tab-btn.active{background:rgba(115,103,240,.15);color:var(--blue)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+/* ── Info box ── */
+.info-box{background:#F5F3FF;border:1px solid rgba(115,103,240,.15);border-left:3px solid var(--blue);
+  border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:.83rem;color:var(--text);line-height:1.6}
+/* ── Heatmap ── */
+.heatmap{border-collapse:collapse;width:100%;font-size:.78rem}
+.heatmap th{background:#F5F3FF;color:var(--text);padding:8px 12px;font-weight:500;
+  white-space:nowrap;font-size:.75rem;border:1px solid var(--border)}
+.heatmap td{padding:7px 12px;text-align:center;border:1px solid var(--border);color:var(--text)}
+.heatmap tr:hover td{background:rgba(115,103,240,.06)}
+/* ── Bubble canvas ── */
+#bubble-canvas{cursor:crosshair;border-radius:8px;background:#FFFFFF;width:100% !important}
+/* ── Tooltip ── */
+.tooltip{position:fixed;background:#FFFFFF;color:var(--text);padding:10px 14px;border-radius:8px;
+  font-size:.8rem;pointer-events:none;display:none;z-index:1000;max-width:220px;line-height:1.6;
+  border:1px solid var(--border);box-shadow:0 8px 24px #EAEAEA}
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);display:none;
+  z-index:2000;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:#FFFFFF;border:1px solid var(--border);border-radius:16px;padding:28px;
+  max-width:620px;width:92%;max-height:85vh;overflow-y:auto;position:relative;
+  box-shadow:0 10px 30px rgba(86,106,127,0.15)}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;
+  font-size:1.3rem;cursor:pointer;color:var(--muted);transition:color .15s}
+.modal-close:hover{color:var(--blue-hover)}
+.modal-name{font-family:var(--serif);font-size:1.3rem;color:var(--blue)}
+.cl-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:.75rem;
+  font-weight:600;color:white;margin:6px 0 14px}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.modal-item{background:#F5F3FF;padding:10px;border-radius:8px}
+.modal-item .mi-lbl{font-size:.7rem;color:var(--muted)}
+.modal-item .mi-val{font-size:1rem;font-weight:700;color:var(--text);font-family:var(--serif)}
+.course-tbl{width:100%;border-collapse:collapse;font-size:.78rem}
+.course-tbl th{background:#F5F3FF;padding:6px 10px;text-align:left;font-weight:600;color:var(--text)}
+.course-tbl td{padding:5px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.grade-A{color:var(--green);font-weight:700}
+.grade-B{color:var(--blue);font-weight:700}
+.grade-C{color:var(--yellow);font-weight:700}
+.grade-D{color:var(--red);font-weight:700}
+/* ── Mini sparkline ── */
+canvas.sparkline{border-radius:4px}
+/* ── Student cards ── */
+.stu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.stu-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:14px;cursor:pointer;transition:all .18s;border-top:3px solid transparent;
+  box-shadow:0 2px 8px #EAEAEA}
+.stu-card:hover{border-color:var(--blue-hover);transform:translateY(-2px);
+  box-shadow:0 8px 20px #EAEAEA}
+.stu-name{font-weight:600;font-size:.9rem;color:var(--text);margin-bottom:3px}
+.stu-nrp{font-size:.73rem;color:var(--muted);font-family:var(--mono)}
+.stu-meta{display:flex;align-items:center;gap:8px;margin-top:8px}
+/* ── Legend ── */
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.78rem;
+  background:#F5F3FF;padding:3px 10px;border-radius:20px;color:var(--text)}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+/* ── Advice ── */
+.advice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.advice-card{border-radius:10px;padding:16px;border:1px solid;transition:transform .18s}
+.advice-card:hover{transform:translateY(-2px)}
+.advice-card h4{font-size:.95rem;font-weight:700;margin-bottom:8px}
+.advice-card ul{padding-left:16px;font-size:.8rem;line-height:1.8;color:var(--text)}
+/* ── Search ── */
+.search-input{width:100%;padding:10px 16px;background:#FFFFFF;border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:.85rem;outline:none;font-family:var(--font);margin-bottom:14px}
+.search-input:focus{border-color:var(--blue-hover)}
+/* ── Footer ── */
+.footer{text-align:center;padding:24px;color:var(--dim);font-size:.72rem;
+  border-top:1px solid var(--border);margin-top:40px;font-family:var(--mono)}
+.footer span{color:rgba(77,166,255,.5)}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-title">🎓 Academic<br><span>Clustering</span></div>
+    <div class="sb-byline">by Naufal</div>
+  </div>
+  <hr class="sb-divider">
+  <div class="sb-nav">
+    <button class="sb-nav-item active" onclick="showPage('overview',this)"><span class="sb-nav-icon">🏠</span> Overview</button>
+    <button class="sb-nav-item" onclick="showPage('eda',this)"><span class="sb-nav-icon">🔬</span> EDA</button>
+    <button class="sb-nav-item" onclick="showPage('princals',this)"><span class="sb-nav-icon">🌀</span> PRINCALS</button>
+    <button class="sb-nav-item" onclick="showPage('clustering',this)"><span class="sb-nav-icon">🫧</span> Clustering</button>
+    <button class="sb-nav-item" onclick="showPage('evaluasi',this)"><span class="sb-nav-icon">📊</span> Evaluasi</button>
+    <button class="sb-nav-item" onclick="showPage('mahasiswa',this)"><span class="sb-nav-icon">👥</span> Mahasiswa</button>
+    <button class="sb-nav-item" onclick="showPage('rekomendasi',this)"><span class="sb-nav-icon">💡</span> Rekomendasi</button>
+  </div>
+  <div class="sb-info">
+    <div class="sb-info-row"><b>Model</b> &nbsp;KMeans k=5</div>
+    <div class="sb-info-row"><b>Silhouette</b> 0.3485</div>
+    <div class="sb-info-row"><b>BSS/TSS</b> &nbsp;74.46%</div>
+    <div class="sb-info-row"><b>PRINCALS</b> 4 PC (81.27%)</div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ════ PAGE: OVERVIEW ════ -->
+<div class="page active" id="page-overview">
+<div style="padding:28px 32px 48px">
+  <div class="hero">
+    <div class="hero-title">Academic<br><em>Clustering</em> Dashboard</div>
+    <div class="hero-sub">Segmentasi mahasiswa berbasis PRINCALS + 7 metode clustering &nbsp;·&nbsp; Composite multi-kriteria</div>
+    <div class="hero-tags">
+      <span class="hero-tag">PRINCALS</span><span class="hero-tag">FCM · FPCM · MFPCM</span>
+      <span class="hero-tag">K-Means · K-Medoids</span><span class="hero-tag">DBSCAN · PCM</span>
+    </div>
+    <div class="hero-byline">by Naufal</div>
+  </div>
+  <div class="metric-row" id="metric-row"></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Distribusi Mahasiswa per Cluster</div>
+      <canvas id="bar-canvas" height="220"></canvas>
+      <div class="legend" id="bar-legend"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Rata-Rata IPS per Cluster</div>
+      <canvas id="ips-canvas" height="220"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Tren IPS per Semester per Cluster</div>
+    <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="IPS Trend">
+  </div>
+</div>
+</div>
+
+<!-- ════ PAGE: EDA ════ -->
+<div class="page" id="page-eda">
+<div style="padding:28px 32px 48px">
+  <div class="section-h">Exploratory Data <em>Analysis</em></div>
+  <div class="info-box">EDA dilakukan untuk memahami karakteristik data sebelum clustering:
+  distribusi variabel, deteksi outlier, korelasi antar fitur, dan pola awal per cluster.</div>
+
+  <div class="tabs" id="eda-tabs">
+    <button class="tab-btn active" onclick="switchTab('eda','dist',this)">📊 Distribusi IPS</button>
+    <button class="tab-btn" onclick="switchTab('eda','absen',this)">📉 Absensi</button>
+    <button class="tab-btn" onclick="switchTab('eda','outlier',this)">🔴 Outlier</button>
+    <button class="tab-btn" onclick="switchTab('eda','corr',this)">🌡️ Korelasi</button>
+    <button class="tab-btn" onclick="switchTab('eda','courses',this)">📚 Mata Kuliah</button>
+  </div>
+
+  <div class="tab-pane active" id="eda-dist">
+    <div class="card">
+      <div class="card-title">Distribusi IPS per Semester (dengan mean & median)</div>
+      <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="IPS Distribution">
+    </div>
+    <div class="card">
+      <div class="card-title">Tren IPS per Cluster per Semester</div>
+      <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="IPS Trend">
+    </div>
+  </div>
+
+  <div class="tab-pane" id="eda-absen">
+    <div class="card">
+      <div class="card-title">Rata-Rata Absensi per Cluster</div>
+      <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Absensi">
+    </div>
+    <div class="info-box">
+      Semua cluster memiliki rata-rata absensi di atas 97% — kehadiran mahasiswa secara umum sangat baik.
+      Cluster <b>Rendah</b> memiliki absensi sedikit lebih rendah (~98.4%) dibanding cluster lainnya,
+      menjadi salah satu pembeda dalam composite scoring.
+    </div>
+  </div>
+
+  <div class="tab-pane" id="eda-outlier">
+    <div class="card">
+      <div class="card-title">Deteksi Outlier — Boxplot per Fitur (Metode IQR)</div>
+      <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Outlier">
+    </div>
+    <div class="info-box">
+      Outlier dideteksi menggunakan metode IQR (1.5×IQR) dan Z-score (|z|&gt;3).
+      Beberapa outlier terdeteksi pada IPS dan absensi — ini adalah mahasiswa dengan
+      performa ekstrem (sangat tinggi atau sangat rendah) yang justru memperkuat diferensiasi cluster.
+    </div>
+  </div>
+
+  <div class="tab-pane" id="eda-corr">
+    <div class="card">
+      <div class="card-title">Heatmap Korelasi Antar Fitur (Pearson)</div>
+      <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Korelasi">
+    </div>
+    <div class="info-box">
+      IPS antar semester berkorelasi tinggi satu sama lain (≈0.7–0.9), menunjukkan
+      konsistensi performa. Korelasi IPS dengan absensi relatif rendah, menunjukkan kehadiran
+      dan nilai akademik adalah dimensi yang relatif independen — ini mendukung penggunaan
+      keduanya sebagai fitur terpisah dalam clustering.
+    </div>
+  </div>
+
+  <div class="tab-pane" id="eda-courses">
+    <div class="card">
+      <div class="card-title">Pilih Cluster → Lihat Rata-Rata Nilai Mata Kuliah</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="course-cluster-tabs"></div>
+      <canvas id="course-bar-canvas" height="340"></canvas>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════ PAGE: PRINCALS ════ -->
+<div class="page" id="page-princals">
+<div style="padding:28px 32px 48px">
+  <div class="section-h">Transformasi <em>PRINCALS</em></div>
+  <div class="info-box">
+    <b>PRINCALS (Principal Components Analysis by ALS)</b> melakukan reduksi dimensi dengan
+    optimal scaling non-linear untuk data campuran numerik + kategorik.
+    Implementasi menggunakan rank-based transformation sebagai aproksimasi ALS,
+    dilanjutkan PCA. Komponen dipilih berdasarkan <b>cumulative variance ≥ 80%</b>.
+  </div>
+  <div class="metric-row">
+    <div class="metric-card"><div class="metric-accent" style="background:var(--blue)"></div>
+      <div class="metric-val">12</div><div class="metric-lbl">Dimensi Awal</div></div>
+    <div class="metric-card"><div class="metric-accent" style="background:var(--green)"></div>
+      <div class="metric-val">4</div><div class="metric-lbl">Komponen Dipilih</div></div>
+    <div class="metric-card"><div class="metric-accent" style="background:var(--yellow)"></div>
+      <div class="metric-val">81.27%</div><div class="metric-lbl">Cumulative Variance</div></div>
+    <div class="metric-card"><div class="metric-accent" style="background:var(--orange)"></div>
+      <div class="metric-val">81.3%</div><div class="metric-lbl">Informasi Terjaga</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Scree Plot & Cumulative Variance Explained</div>
+    <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="PRINCALS Scree">
+  </div>
+  <div class="card">
+    <div class="card-title">Scatter Plot PC1 vs PC2 (pewarnaan per cluster)</div>
+    <canvas id="pc-canvas" height="380"></canvas>
+    <div class="legend" id="pc-legend"></div>
+  </div>
+</div>
+</div>
+
+<!-- ════ PAGE: CLUSTERING ════ -->
+<div class="page" id="page-clustering">
+<div style="padding:28px 32px 48px">
+  <div class="section-h">Hasil <em>Clustering</em></div>
+  <div class="card">
+    <div class="card-title">🫧 Bubble Chart — PC1 vs PC2 (ukuran bubble = IPS kumulatif, klik untuk detail)</div>
+    <canvas id="bubble-canvas" height="400"></canvas>
+    <div class="legend" id="bubble-legend"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🌡️ Heatmap Profil Cluster</div>
+    <div style="overflow-x:auto"><table class="heatmap" id="heatmap-table"></table></div>
+  </div>
+</div>
+</div>
+
+<!-- ════ PAGE: EVALUASI ════ -->
+<div class="page" id="page-evaluasi">
+<div style="padding:28px 32px 48px">
+  <div class="section-h">Evaluasi <em>Cluster</em></div>
+  <div class="info-box">
+    <b>Silhouette Coefficient</b> → nilai ≥ 0.3 diterima, semakin mendekati 1 semakin baik. &nbsp;·&nbsp;
+    <b>BSS/TSS</b> → ≥ 50% cukup baik, ≥ 75% sangat baik. Model terpilih: <b>KMeans k=5</b>
+    (Silhouette=0.3485, BSS/TSS=74.46%).
+  </div>
+  <div class="card">
+    <div class="card-title">Silhouette & BSS/TSS semua metode k=2–10</div>
+    <img class="chart-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Evaluasi">
+  </div>
+  <div class="card">
+    <div class="card-title">Heatmap Silhouette Coefficient</div>
+    <canvas id="eval-heatmap-canvas" height="260"></canvas>
+  </div>
+</div>
+</div>
+
+<!-- ════ PAGE: MAHASISWA ════ -->
+<div class="page" id="page-mahasiswa">
+<div style="padding:28px 32px 48px">
+  <div class="section-h">Data <em>Mahasiswa</em></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+    <input class="search-input" id="stu-search" placeholder="🔍 Cari nama atau NRP..."
+           style="flex:1;min-width:200px" oninput="renderStudents()">
+    <select id="stu-filter" onchange="renderStudents()"
+            style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);
+                   border-radius:8px;color:#e8f4fd;font-size:.85rem;font-family:var(--font)">
+      <option value="Semua">Semua Cluster</option>
+    </select>
+  </div>
+  <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px" id="stu-count"></div>
+  <div class="stu-grid" id="stu-grid"></div>
+</div>
+</div>
+
+<!-- ════ PAGE: REKOMENDASI ════ -->
+<div class="page" id="page-rekomendasi">
+<div style="padding:28px 32px 48px">
+  <div class="section-h">Rekomendasi <em>untuk Dosen</em></div>
+  <div class="advice-grid" id="advice-grid"></div>
+  <div class="card" style="margin-top:20px">
+    <div class="card-title">Ringkasan Performa per Cluster</div>
+    <canvas id="summary-radar" height="350"></canvas>
+  </div>
+</div>
+</div>
+
+</main>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div class="footer">
+  Academic Clustering Dashboard &nbsp;·&nbsp;
+  <span>PRINCALS + FCM + FPCM + MFPCM + K-Means + K-Medoids + DBSCAN</span>
+  &nbsp;·&nbsp; by <span>Naufal</span>
+</div>
+
+<script>
+// ── Data ──
+const STUDENTS = [{"id": 3322600001, "name": "Rike Anindhita", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Batam", "cluster": "Sedang", "ips": 3.36, "absensi": 100.0, "pc1": 1.078299293272, "pc2": 2.057296874284252, "bubble_size": 40.32, "courses": {"Aljabar Linier": 3.06, "Statistika Dasar": 3.92, "Pemrograman 1": 2.54, "Logika dan Algoritma": 3.33, "Basis Data": 3.68, "Matematika 1": 3.19, "Agama": 2.89, "Praktikum Statistika Dasar": 3.77, "Praktikum Pemrograman 1": 3.14, "Praktikum Basis Data": 3.48, "Pemodelan Statistik Terapan": 3.12, "Pemrograman 2": 3.45, "Kecerdasan Buatan": 2.98, "Pemrosesan Data": 3.67, "Manajemen Data": 3.21, "Matematika 2": 2.76, "Kewarganegaraan": 3.89, "Praktikum Pemodelan Statistik Terapan": 3.34, "Praktikum Pemrograman 2": 2.55, "Praktikum Kecerdasan Buatan": 3.71, "Praktikum Pemrosesan Data": 3.08, "Praktikum Manajemen Data": 3.92, "Matematika 3": 3.12, "Analisa Statistika Terapan": 3.45, "Pemrograman 3": 2.98, "Mesin Pembelajaran": 3.67, "Text Mining": 3.21, "Eksplorasi dan Visualisasi Data": 2.75, "Pancasila": 3.89, "Praktikum Analisa Statistika Terapan": 3.04, "Praktikum Pemrograman 3": 3.56, "Praktikum Mesin Pembelajaran": 2.84, "Praktikum Text Mining": 3.33, "Praktikum Eksplorasi dan Visualisasi Data": 3.71, "Data Mining": 3.21, "Teknologi Web Service": 2.87, "Machine Learning Ops": 3.45, "Infrastruktur dan Manajemen Big Data": 3.12, "Data Warehouse": 3.78, "Praktikum Data Mining": 2.94, "Praktikum Teknologi Web Service": 3.66, "Praktikum Machine Learning Ops": 3.01, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 2.76, "Teknologi dan Tool Big Data": 3.42, "Neuro Computing": 2.95, "Workshop Analitika Data Terapan": 3.18, "Workshop Analisis Sosial Media": 3.67, "Ekonometrika Terapan": 2.74, "Teknik Presentasi Data": 3.89, "Technopreneur Sains Data": 3.05, "Bahasa Inggris Teknik": 2.61, "Bahasa Indonesia": 3.54, "Praktikum Neuro Computing": 3.21}, "ips_sem": {"Sem 1": 3.76, "Sem 2": 3.7, "Sem 3": 3.82, "Sem 4": 3.8}}, {"id": 3322600002, "name": "Ida Ayu Made 'Ilmi", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Surabaya", "cluster": "Cukup", "ips": 3.19, "absensi": 100.0, "pc1": -1.5942393467020333, "pc2": 1.3409598362867143, "bubble_size": 38.28, "courses": {"Aljabar Linier": 3.71, "Statistika Dasar": 2.67, "Pemrograman 1": 3.54, "Logika dan Algoritma": 3.25, "Basis Data": 3.88, "Matematika 1": 3.42, "Agama": 2.95, "Praktikum Statistika Dasar": 3.09, "Praktikum Pemrograman 1": 3.63, "Praktikum Basis Data": 3.31, "Pemodelan Statistik Terapan": 2.84, "Pemrograman 2": 3.56, "Kecerdasan Buatan": 3.11, "Pemrosesan Data": 2.97, "Manajemen Data": 3.74, "Matematika 2": 3.28, "Kewarganegaraan": 2.63, "Praktikum Pemodelan Statistik Terapan": 3.9, "Praktikum Pemrograman 2": 3.15, "Praktikum Kecerdasan Buatan": 2.88, "Praktikum Pemrosesan Data": 3.62, "Praktikum Manajemen Data": 3.47, "Matematika 3": 2.88, "Analisa Statistika Terapan": 3.61, "Pemrograman 3": 3.09, "Mesin Pembelajaran": 2.74, "Text Mining": 3.48, "Eksplorasi dan Visualisasi Data": 3.02, "Pancasila": 3.85, "Praktikum Analisa Statistika Terapan": 2.96, "Praktikum Pemrograman 3": 3.27, "Praktikum Mesin Pembelajaran": 3.69, "Praktikum Text Mining": 2.81, "Praktikum Eksplorasi dan Visualisasi Data": 3.14, "Data Mining": 3.89, "Teknologi Web Service": 3.14, "Machine Learning Ops": 2.95, "Infrastruktur dan Manajemen Big Data": 3.27, "Data Warehouse": 3.62, "Praktikum Data Mining": 3.08, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.33, "Praktikum Data Warehouse": 3.05, "Teknologi dan Tool Big Data": 2.88, "Neuro Computing": 3.76, "Workshop Analitika Data Terapan": 3.09, "Workshop Analisis Sosial Media": 2.57, "Ekonometrika Terapan": 3.44, "Teknik Presentasi Data": 3.91, "Technopreneur Sains Data": 2.69, "Bahasa Inggris Teknik": 3.12, "Bahasa Indonesia": 3.63, "Praktikum Neuro Computing": 2.84}, "ips_sem": {"Sem 1": 3.71, "Sem 2": 3.55, "Sem 3": 3.4, "Sem 4": 3.39}}, {"id": 3322600003, "name": "Arifah Shafyan", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Surabaya", "cluster": "Sedang", "ips": 3.25, "absensi": 100.0, "pc1": 1.9163612814788402, "pc2": 0.4612106401703474, "bubble_size": 39.0, "courses": {"Aljabar Linier": 3.18, "Statistika Dasar": 3.47, "Pemrograman 1": 3.83, "Logika dan Algoritma": 2.79, "Basis Data": 3.56, "Matematika 1": 3.24, "Agama": 2.92, "Praktikum Statistika Dasar": 3.69, "Praktikum Pemrograman 1": 3.07, "Praktikum Basis Data": 3.91, "Pemodelan Statistik Terapan": 3.29, "Pemrograman 2": 2.71, "Kecerdasan Buatan": 3.84, "Pemrosesan Data": 3.06, "Manajemen Data": 2.95, "Matematika 2": 3.58, "Kewarganegaraan": 3.41, "Praktikum Pemodelan Statistik Terapan": 2.67, "Praktikum Pemrograman 2": 3.79, "Praktikum Kecerdasan Buatan": 3.14, "Praktikum Pemrosesan Data": 2.89, "Praktikum Manajemen Data": 3.66, "Matematika 3": 3.54, "Analisa Statistika Terapan": 2.69, "Pemrograman 3": 3.11, "Mesin Pembelajaran": 3.83, "Text Mining": 2.92, "Eksplorasi dan Visualisasi Data": 3.46, "Pancasila": 3.07, "Praktikum Analisa Statistika Terapan": 2.58, "Praktikum Pemrograman 3": 3.72, "Praktikum Mesin Pembelajaran": 3.19, "Praktikum Text Mining": 2.87, "Praktikum Eksplorasi dan Visualisasi Data": 3.95, "Data Mining": 2.98, "Teknologi Web Service": 3.41, "Machine Learning Ops": 3.12, "Infrastruktur dan Manajemen Big Data": 2.76, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.29, "Praktikum Teknologi Web Service": 3.84, "Praktikum Machine Learning Ops": 2.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.05, "Praktikum Data Warehouse": 3.58, "Teknologi dan Tool Big Data": 3.58, "Neuro Computing": 2.73, "Workshop Analitika Data Terapan": 3.86, "Workshop Analisis Sosial Media": 3.27, "Ekonometrika Terapan": 2.95, "Teknik Presentasi Data": 3.49, "Technopreneur Sains Data": 3.14, "Bahasa Inggris Teknik": 3.72, "Bahasa Indonesia": 2.66, "Praktikum Neuro Computing": 3.01}, "ips_sem": {"Sem 1": 3.79, "Sem 2": 3.87, "Sem 3": 3.91, "Sem 4": 3.78}}, {"id": 3322600004, "name": "Puput Ayu Setiawati", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Sidoarjo", "cluster": "Cukup", "ips": 3.08, "absensi": 100.0, "pc1": -0.8170435732869531, "pc2": 2.2776895104281363, "bubble_size": 36.96, "courses": {"Aljabar Linier": 2.58, "Statistika Dasar": 3.34, "Pemrograman 1": 3.11, "Logika dan Algoritma": 3.76, "Basis Data": 3.28, "Matematika 1": 3.93, "Agama": 2.86, "Praktikum Statistika Dasar": 3.52, "Praktikum Pemrograman 1": 3.21, "Praktikum Basis Data": 3.64, "Pemodelan Statistik Terapan": 3.05, "Pemrograman 2": 3.72, "Kecerdasan Buatan": 2.86, "Pemrosesan Data": 3.39, "Manajemen Data": 3.91, "Matematika 2": 2.64, "Kewarganegaraan": 3.27, "Praktikum Pemodelan Statistik Terapan": 3.54, "Praktikum Pemrograman 2": 2.78, "Praktikum Kecerdasan Buatan": 3.88, "Praktikum Pemrosesan Data": 3.12, "Praktikum Manajemen Data": 3.46, "Matematika 3": 2.97, "Analisa Statistika Terapan": 3.22, "Pemrograman 3": 3.68, "Mesin Pembelajaran": 2.84, "Text Mining": 3.51, "Eksplorasi dan Visualisasi Data": 3.09, "Pancasila": 2.73, "Praktikum Analisa Statistika Terapan": 3.9, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.61, "Praktikum Text Mining": 3.44, "Praktikum Eksplorasi dan Visualisasi Data": 3.78, "Data Mining": 3.21, "Teknologi Web Service": 2.87, "Machine Learning Ops": 3.46, "Infrastruktur dan Manajemen Big Data": 3.09, "Data Warehouse": 3.74, "Praktikum Data Mining": 2.95, "Praktikum Teknologi Web Service": 3.62, "Praktikum Machine Learning Ops": 3.18, "Praktikum Infrastruktur dan Manajemen Big Data": 3.88, "Praktikum Data Warehouse": 3.27, "Teknologi dan Tool Big Data": 3.33, "Neuro Computing": 3.81, "Workshop Analitika Data Terapan": 2.59, "Workshop Analisis Sosial Media": 3.06, "Ekonometrika Terapan": 3.64, "Teknik Presentasi Data": 2.77, "Technopreneur Sains Data": 3.28, "Bahasa Inggris Teknik": 3.9, "Bahasa Indonesia": 2.85, "Praktikum Neuro Computing": 3.47}, "ips_sem": {"Sem 1": 3.66, "Sem 2": 3.45, "Sem 3": 3.77, "Sem 4": 3.71}}, {"id": 3322600005, "name": "Salsabila Aurora Octavia", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Gresik", "cluster": "Cukup", "ips": 3.31, "absensi": 100.0, "pc1": -0.7684355559510725, "pc2": 2.219380578510889, "bubble_size": 39.72, "courses": {"Aljabar Linier": 3.95, "Statistika Dasar": 3.16, "Pemrograman 1": 3.59, "Logika dan Algoritma": 2.97, "Basis Data": 3.43, "Matematika 1": 3.82, "Agama": 2.74, "Praktikum Statistika Dasar": 3.26, "Praktikum Pemrograman 1": 3.67, "Praktikum Basis Data": 3.08, "Pemodelan Statistik Terapan": 2.92, "Pemrograman 2": 3.61, "Kecerdasan Buatan": 3.35, "Pemrosesan Data": 2.83, "Manajemen Data": 3.77, "Matematika 2": 3.09, "Kewarganegaraan": 2.59, "Praktikum Pemodelan Statistik Terapan": 3.94, "Praktikum Pemrograman 2": 3.26, "Praktikum Kecerdasan Buatan": 2.74, "Praktikum Pemrosesan Data": 3.68, "Praktikum Manajemen Data": 3.18, "Matematika 3": 3.26, "Analisa Statistika Terapan": 2.88, "Pemrograman 3": 3.47, "Mesin Pembelajaran": 3.02, "Text Mining": 2.69, "Eksplorasi dan Visualisasi Data": 3.74, "Pancasila": 3.18, "Praktikum Analisa Statistika Terapan": 2.91, "Praktikum Pemrograman 3": 3.56, "Praktikum Mesin Pembelajaran": 3.09, "Praktikum Text Mining": 2.63, "Praktikum Eksplorasi dan Visualisasi Data": 3.88, "Data Mining": 3.56, "Teknologi Web Service": 3.02, "Machine Learning Ops": 2.89, "Infrastruktur dan Manajemen Big Data": 3.41, "Data Warehouse": 3.18, "Praktikum Data Mining": 3.67, "Praktikum Teknologi Web Service": 2.94, "Praktikum Machine Learning Ops": 3.85, "Praktikum Infrastruktur dan Manajemen Big Data": 3.09, "Praktikum Data Warehouse": 3.26, "Teknologi dan Tool Big Data": 2.62, "Neuro Computing": 3.55, "Workshop Analitika Data Terapan": 3.19, "Workshop Analisis Sosial Media": 2.94, "Ekonometrika Terapan": 3.73, "Teknik Presentasi Data": 3.08, "Technopreneur Sains Data": 2.71, "Bahasa Inggris Teknik": 3.41, "Bahasa Indonesia": 3.87, "Praktikum Neuro Computing": 3.02}, "ips_sem": {"Sem 1": 3.55, "Sem 2": 3.76, "Sem 3": 3.67, "Sem 4": 3.61}}, {"id": 3322600006, "name": "Indah Sulistyowati", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Sidoarjo", "cluster": "Cukup", "ips": 3.11, "absensi": 100.0, "pc1": -1.265054086849255, "pc2": 1.977254996701284, "bubble_size": 37.32, "courses": {"Aljabar Linier": 3.22, "Statistika Dasar": 3.89, "Pemrograman 1": 2.63, "Logika dan Algoritma": 3.48, "Basis Data": 3.13, "Matematika 1": 3.61, "Agama": 2.91, "Praktikum Statistika Dasar": 3.85, "Praktikum Pemrograman 1": 3.36, "Praktikum Basis Data": 3.73, "Pemodelan Statistik Terapan": 3.49, "Pemrograman 2": 2.81, "Kecerdasan Buatan": 3.93, "Pemrosesan Data": 3.16, "Manajemen Data": 2.98, "Matematika 2": 3.57, "Kewarganegaraan": 3.22, "Praktikum Pemodelan Statistik Terapan": 2.66, "Praktikum Pemrograman 2": 3.85, "Praktikum Kecerdasan Buatan": 3.07, "Praktikum Pemrosesan Data": 2.91, "Praktikum Manajemen Data": 3.63, "Matematika 3": 2.74, "Analisa Statistika Terapan": 3.58, "Pemrograman 3": 3.21, "Mesin Pembelajaran": 2.96, "Text Mining": 3.49, "Eksplorasi dan Visualisasi Data": 3.07, "Pancasila": 2.65, "Praktikum Analisa Statistika Terapan": 3.84, "Praktikum Pemrograman 3": 3.12, "Praktikum Mesin Pembelajaran": 2.89, "Praktikum Text Mining": 3.71, "Praktikum Eksplorasi dan Visualisasi Data": 3.05, "Data Mining": 2.78, "Teknologi Web Service": 3.54, "Machine Learning Ops": 3.11, "Infrastruktur dan Manajemen Big Data": 3.73, "Data Warehouse": 2.96, "Praktikum Data Mining": 3.88, "Praktikum Teknologi Web Service": 3.21, "Praktikum Machine Learning Ops": 3.05, "Praktikum Infrastruktur dan Manajemen Big Data": 3.47, "Praktikum Data Warehouse": 3.62, "Teknologi dan Tool Big Data": 3.69, "Neuro Computing": 2.83, "Workshop Analitika Data Terapan": 3.24, "Workshop Analisis Sosial Media": 3.52, "Ekonometrika Terapan": 2.68, "Teknik Presentasi Data": 3.96, "Technopreneur Sains Data": 3.11, "Bahasa Inggris Teknik": 2.75, "Bahasa Indonesia": 3.45, "Praktikum Neuro Computing": 3.17}, "ips_sem": {"Sem 1": 3.61, "Sem 2": 3.66, "Sem 3": 3.6, "Sem 4": 3.66}}, {"id": 3322600008, "name": "Muhammad Fauzil Kazhim Zen", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Jakarta Barat", "cluster": "Rendah", "ips": 2.92, "absensi": 99.22, "pc1": -3.6360098866303328, "pc2": 0.5495209373068733, "bubble_size": 35.04, "courses": {"Aljabar Linier": 3.24, "Statistika Dasar": 3.87, "Pemrograman 1": 2.95, "Logika dan Algoritma": 3.56, "Basis Data": 3.12, "Matematika 1": 3.98, "Agama": 2.74, "Praktikum Statistika Dasar": 3.41, "Praktikum Pemrograman 1": 3.69, "Praktikum Basis Data": 2.88, "Pemodelan Statistik Terapan": 3.14, "Pemrograman 2": 3.76, "Kecerdasan Buatan": 2.87, "Pemrosesan Data": 3.42, "Manajemen Data": 3.96, "Matematika 2": 2.69, "Kewarganegaraan": 3.31, "Praktikum Pemodelan Statistik Terapan": 3.59, "Praktikum Pemrograman 2": 2.75, "Praktikum Kecerdasan Buatan": 3.82, "Praktikum Pemrosesan Data": 3.04, "Praktikum Manajemen Data": 3.51, "Matematika 3": 3.09, "Analisa Statistika Terapan": 2.84, "Pemrograman 3": 3.63, "Mesin Pembelajaran": 3.18, "Text Mining": 2.95, "Eksplorasi dan Visualisasi Data": 3.47, "Pancasila": 3.06, "Praktikum Analisa Statistika Terapan": 2.71, "Praktikum Pemrograman 3": 3.89, "Praktikum Mesin Pembelajaran": 3.24, "Praktikum Text Mining": 2.67, "Praktikum Eksplorasi dan Visualisasi Data": 3.55, "Data Mining": 2.84, "Teknologi Web Service": 3.29, "Machine Learning Ops": 3.67, "Infrastruktur dan Manajemen Big Data": 3.14, "Data Warehouse": 2.95, "Praktikum Data Mining": 3.82, "Praktikum Teknologi Web Service": 3.05, "Praktikum Machine Learning Ops": 3.48, "Praktikum Infrastruktur dan Manajemen Big Data": 3.21, "Praktikum Data Warehouse": 2.76, "Teknologi dan Tool Big Data": 3.04, "Neuro Computing": 3.88, "Workshop Analitika Data Terapan": 2.91, "Workshop Analisis Sosial Media": 3.36, "Ekonometrika Terapan": 3.59, "Teknik Presentasi Data": 2.64, "Technopreneur Sains Data": 3.78, "Bahasa Inggris Teknik": 3.09, "Bahasa Indonesia": 2.82, "Praktikum Neuro Computing": 3.48}, "ips_sem": {"Sem 1": 3.13, "Sem 2": 3.39, "Sem 3": 3.13, "Sem 4": 3.3}}, {"id": 3322600009, "name": "Dicky Syarif Renaldi", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Sangat Tinggi", "ips": 3.67, "absensi": 98.44, "pc1": 1.262781422197188, "pc2": -0.1396234078186582, "bubble_size": 44.04, "courses": {"Aljabar Linier": 3.77, "Statistika Dasar": 2.63, "Pemrograman 1": 3.45, "Logika dan Algoritma": 3.91, "Basis Data": 3.28, "Matematika 1": 2.84, "Agama": 3.66, "Praktikum Statistika Dasar": 3.05, "Praktikum Pemrograman 1": 3.89, "Praktikum Basis Data": 3.14, "Pemodelan Statistik Terapan": 2.96, "Pemrograman 2": 3.64, "Kecerdasan Buatan": 3.28, "Pemrosesan Data": 2.85, "Manajemen Data": 3.73, "Matematika 2": 3.11, "Kewarganegaraan": 2.61, "Praktikum Pemodelan Statistik Terapan": 3.9, "Praktikum Pemrograman 2": 3.24, "Praktikum Kecerdasan Buatan": 2.79, "Praktikum Pemrosesan Data": 3.67, "Praktikum Manajemen Data": 3.36, "Matematika 3": 2.91, "Analisa Statistika Terapan": 3.34, "Pemrograman 3": 3.02, "Mesin Pembelajaran": 2.66, "Text Mining": 3.57, "Eksplorasi dan Visualisasi Data": 3.19, "Pancasila": 2.84, "Praktikum Analisa Statistika Terapan": 3.88, "Praktikum Pemrograman 3": 3.07, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.41, "Praktikum Eksplorasi dan Visualisasi Data": 3.72, "Data Mining": 3.91, "Teknologi Web Service": 3.34, "Machine Learning Ops": 3.09, "Infrastruktur dan Manajemen Big Data": 3.62, "Data Warehouse": 2.88, "Praktikum Data Mining": 3.54, "Praktikum Teknologi Web Service": 3.17, "Praktikum Machine Learning Ops": 3.75, "Praktikum Infrastruktur dan Manajemen Big Data": 3.26, "Praktikum Data Warehouse": 2.97, "Teknologi dan Tool Big Data": 2.97, "Neuro Computing": 3.66, "Workshop Analitika Data Terapan": 3.22, "Workshop Analisis Sosial Media": 2.58, "Ekonometrika Terapan": 3.84, "Teknik Presentasi Data": 3.15, "Technopreneur Sains Data": 2.79, "Bahasa Inggris Teknik": 3.53, "Bahasa Indonesia": 3.07, "Praktikum Neuro Computing": 3.91}, "ips_sem": {"Sem 1": 3.87, "Sem 2": 3.85, "Sem 3": 3.74, "Sem 4": 3.75}}, {"id": 3322600010, "name": "Muhammad Riski Alde", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Ponorogo", "cluster": "Sangat Tinggi", "ips": 3.56, "absensi": 100.0, "pc1": 2.3206619516515006, "pc2": 0.7032331005804149, "bubble_size": 42.72, "courses": {"Aljabar Linier": 2.97, "Statistika Dasar": 3.52, "Pemrograman 1": 3.08, "Logika dan Algoritma": 3.76, "Basis Data": 3.33, "Matematika 1": 2.69, "Agama": 3.94, "Praktikum Statistika Dasar": 3.21, "Praktikum Pemrograman 1": 3.47, "Praktikum Basis Data": 3.85, "Pemodelan Statistik Terapan": 3.08, "Pemrograman 2": 3.71, "Kecerdasan Buatan": 2.94, "Pemrosesan Data": 3.48, "Manajemen Data": 3.87, "Matematika 2": 2.65, "Kewarganegaraan": 3.33, "Praktikum Pemodelan Statistik Terapan": 3.55, "Praktikum Pemrograman 2": 2.82, "Praktikum Kecerdasan Buatan": 3.91, "Praktikum Pemrosesan Data": 3.19, "Praktikum Manajemen Data": 3.44, "Matematika 3": 3.44, "Analisa Statistika Terapan": 2.75, "Pemrograman 3": 3.18, "Mesin Pembelajaran": 3.61, "Text Mining": 2.92, "Eksplorasi dan Visualisasi Data": 3.07, "Pancasila": 3.84, "Praktikum Analisa Statistika Terapan": 2.69, "Praktikum Pemrograman 3": 3.55, "Praktikum Mesin Pembelajaran": 3.11, "Praktikum Text Mining": 2.81, "Praktikum Eksplorasi dan Visualisasi Data": 3.96, "Data Mining": 3.12, "Teknologi Web Service": 3.78, "Machine Learning Ops": 2.94, "Infrastruktur dan Manajemen Big Data": 3.45, "Data Warehouse": 3.09, "Praktikum Data Mining": 3.62, "Praktikum Teknologi Web Service": 2.87, "Praktikum Machine Learning Ops": 3.54, "Praktikum Infrastruktur dan Manajemen Big Data": 3.21, "Praktikum Data Warehouse": 3.88, "Teknologi dan Tool Big Data": 3.26, "Neuro Computing": 2.87, "Workshop Analitika Data Terapan": 3.71, "Workshop Analisis Sosial Media": 3.13, "Ekonometrika Terapan": 2.65, "Teknik Presentasi Data": 3.46, "Technopreneur Sains Data": 3.82, "Bahasa Inggris Teknik": 2.93, "Bahasa Indonesia": 3.04, "Praktikum Neuro Computing": 3.68}, "ips_sem": {"Sem 1": 3.89, "Sem 2": 3.84, "Sem 3": 3.91, "Sem 4": 3.86}}, {"id": 3322600011, "name": "Farrel Manazili Nabhan", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Sampang", "cluster": "Tinggi", "ips": 3.64, "absensi": 96.09, "pc1": 0.5224447024979726, "pc2": -2.992983214825408, "bubble_size": 43.68, "courses": {"Aljabar Linier": 3.11, "Statistika Dasar": 3.68, "Pemrograman 1": 2.58, "Logika dan Algoritma": 3.92, "Basis Data": 3.49, "Matematika 1": 3.26, "Agama": 2.75, "Praktikum Statistika Dasar": 3.83, "Praktikum Pemrograman 1": 3.07, "Praktikum Basis Data": 3.54, "Pemodelan Statistik Terapan": 2.89, "Pemrograman 2": 3.6, "Kecerdasan Buatan": 3.17, "Pemrosesan Data": 2.76, "Manajemen Data": 3.78, "Matematika 2": 3.25, "Kewarganegaraan": 2.68, "Praktikum Pemodelan Statistik Terapan": 3.95, "Praktikum Pemrograman 2": 3.09, "Praktikum Kecerdasan Buatan": 2.84, "Praktikum Pemrosesan Data": 3.69, "Praktikum Manajemen Data": 3.32, "Matematika 3": 2.83, "Analisa Statistika Terapan": 3.59, "Pemrograman 3": 3.06, "Mesin Pembelajaran": 2.91, "Text Mining": 3.28, "Eksplorasi dan Visualisasi Data": 3.74, "Pancasila": 2.67, "Praktikum Analisa Statistika Terapan": 3.86, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.52, "Praktikum Eksplorasi dan Visualisasi Data": 3.08, "Data Mining": 3.05, "Teknologi Web Service": 3.27, "Machine Learning Ops": 2.96, "Infrastruktur dan Manajemen Big Data": 3.73, "Data Warehouse": 3.14, "Praktikum Data Mining": 3.58, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.33, "Praktikum Data Warehouse": 3.01, "Teknologi dan Tool Big Data": 3.57, "Neuro Computing": 3.1, "Workshop Analitika Data Terapan": 2.76, "Workshop Analisis Sosial Media": 3.92, "Ekonometrika Terapan": 3.34, "Teknik Presentasi Data": 2.69, "Technopreneur Sains Data": 3.61, "Bahasa Inggris Teknik": 3.18, "Bahasa Indonesia": 2.88, "Praktikum Neuro Computing": 3.49}, "ips_sem": {"Sem 1": 3.74, "Sem 2": 3.74, "Sem 3": 3.93, "Sem 4": 3.62}}, {"id": 3322600012, "name": "Maulana Ihsan Athallah", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Rendah", "ips": 3.08, "absensi": 97.6, "pc1": -1.9918335766913033, "pc2": -0.9508102647023335, "bubble_size": 36.96, "courses": {"Aljabar Linier": 3.88, "Statistika Dasar": 3.19, "Pemrograman 1": 3.64, "Logika dan Algoritma": 2.91, "Basis Data": 3.42, "Matematika 1": 3.97, "Agama": 2.66, "Praktikum Statistika Dasar": 3.09, "Praktikum Pemrograman 1": 3.71, "Praktikum Basis Data": 3.28, "Pemodelan Statistik Terapan": 3.27, "Pemrograman 2": 2.73, "Kecerdasan Buatan": 3.86, "Pemrosesan Data": 3.12, "Manajemen Data": 2.99, "Matematika 2": 3.52, "Kewarganegaraan": 3.38, "Praktikum Pemodelan Statistik Terapan": 2.62, "Praktikum Pemrograman 2": 3.81, "Praktikum Kecerdasan Buatan": 3.06, "Praktikum Pemrosesan Data": 2.91, "Praktikum Manajemen Data": 3.65, "Matematika 3": 3.21, "Analisa Statistika Terapan": 2.96, "Pemrograman 3": 3.49, "Mesin Pembelajaran": 3.08, "Text Mining": 2.75, "Eksplorasi dan Visualisasi Data": 3.63, "Pancasila": 3.12, "Praktikum Analisa Statistika Terapan": 2.84, "Praktikum Pemrograman 3": 3.91, "Praktikum Mesin Pembelajaran": 3.27, "Praktikum Text Mining": 2.69, "Praktikum Eksplorasi dan Visualisasi Data": 3.56, "Data Mining": 3.67, "Teknologi Web Service": 3.21, "Machine Learning Ops": 3.05, "Infrastruktur dan Manajemen Big Data": 2.89, "Data Warehouse": 3.54, "Praktikum Data Mining": 3.12, "Praktikum Teknologi Web Service": 3.78, "Praktikum Machine Learning Ops": 2.94, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.26, "Teknologi dan Tool Big Data": 2.74, "Neuro Computing": 3.39, "Workshop Analitika Data Terapan": 3.87, "Workshop Analisis Sosial Media": 3.05, "Ekonometrika Terapan": 2.91, "Teknik Presentasi Data": 3.66, "Technopreneur Sains Data": 3.12, "Bahasa Inggris Teknik": 2.83, "Bahasa Indonesia": 3.54, "Praktikum Neuro Computing": 3.21}, "ips_sem": {"Sem 1": 3.58, "Sem 2": 3.68, "Sem 3": 3.67, "Sem 4": 3.74}}, {"id": 3322600013, "name": "Anita Damayanti", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Sidoarjo", "cluster": "Sedang", "ips": 3.64, "absensi": 99.22, "pc1": 2.3526680904598742, "pc2": 1.220775936011137, "bubble_size": 43.68, "courses": {"Aljabar Linier": 2.83, "Statistika Dasar": 3.46, "Pemrograman 1": 3.14, "Logika dan Algoritma": 3.89, "Basis Data": 3.55, "Matematika 1": 2.72, "Agama": 3.96, "Praktikum Statistika Dasar": 3.31, "Praktikum Pemrograman 1": 3.67, "Praktikum Basis Data": 3.02, "Pemodelan Statistik Terapan": 3.02, "Pemrograman 2": 3.75, "Kecerdasan Buatan": 2.88, "Pemrosesan Data": 3.43, "Manajemen Data": 3.92, "Matematika 2": 2.7, "Kewarganegaraan": 3.3, "Praktikum Pemodelan Statistik Terapan": 3.58, "Praktikum Pemrograman 2": 2.77, "Praktikum Kecerdasan Buatan": 3.89, "Praktikum Pemrosesan Data": 3.15, "Praktikum Manajemen Data": 3.47, "Matematika 3": 2.94, "Analisa Statistika Terapan": 3.17, "Pemrograman 3": 3.68, "Mesin Pembelajaran": 2.83, "Text Mining": 3.51, "Eksplorasi dan Visualisasi Data": 3.06, "Pancasila": 2.71, "Praktikum Analisa Statistika Terapan": 3.85, "Praktikum Pemrograman 3": 3.24, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.39, "Praktikum Eksplorasi dan Visualisasi Data": 3.78, "Data Mining": 3.88, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.62, "Infrastruktur dan Manajemen Big Data": 2.97, "Data Warehouse": 3.45, "Praktikum Data Mining": 3.18, "Praktikum Teknologi Web Service": 2.76, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.34, "Praktikum Data Warehouse": 3.08, "Teknologi dan Tool Big Data": 3.44, "Neuro Computing": 2.68, "Workshop Analitika Data Terapan": 3.08, "Workshop Analisis Sosial Media": 3.79, "Ekonometrika Terapan": 3.25, "Teknik Presentasi Data": 2.95, "Technopreneur Sains Data": 3.63, "Bahasa Inggris Teknik": 3.11, "Bahasa Indonesia": 2.77, "Praktikum Neuro Computing": 3.91}, "ips_sem": {"Sem 1": 3.87, "Sem 2": 3.71, "Sem 3": 3.97, "Sem 4": 3.8}}, {"id": 3322600014, "name": "Ardiansyah Indra Febrianto", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Sangat Tinggi", "ips": 3.25, "absensi": 100.0, "pc1": 0.7417858607650843, "pc2": -0.4462720154436235, "bubble_size": 39.0, "courses": {"Aljabar Linier": 3.59, "Statistika Dasar": 3.24, "Pemrograman 1": 2.61, "Logika dan Algoritma": 3.78, "Basis Data": 3.35, "Matematika 1": 3.91, "Agama": 2.87, "Praktikum Statistika Dasar": 3.48, "Praktikum Pemrograman 1": 3.16, "Praktikum Basis Data": 3.84, "Pemodelan Statistik Terapan": 3.21, "Pemrograman 2": 2.86, "Kecerdasan Buatan": 3.47, "Pemrosesan Data": 3.12, "Manajemen Data": 3.74, "Matematika 2": 2.69, "Kewarganegaraan": 3.58, "Praktikum Pemodelan Statistik Terapan": 3.05, "Praktikum Pemrograman 2": 3.89, "Praktikum Kecerdasan Buatan": 2.94, "Praktikum Pemrosesan Data": 3.36, "Praktikum Manajemen Data": 3.67, "Matematika 3": 3.12, "Analisa Statistika Terapan": 3.45, "Pemrograman 3": 2.98, "Mesin Pembelajaran": 3.67, "Text Mining": 3.21, "Eksplorasi dan Visualisasi Data": 2.75, "Pancasila": 3.89, "Praktikum Analisa Statistika Terapan": 3.04, "Praktikum Pemrograman 3": 3.56, "Praktikum Mesin Pembelajaran": 2.84, "Praktikum Text Mining": 3.33, "Praktikum Eksplorasi dan Visualisasi Data": 3.71, "Data Mining": 2.95, "Teknologi Web Service": 3.41, "Machine Learning Ops": 3.78, "Infrastruktur dan Manajemen Big Data": 3.09, "Data Warehouse": 3.62, "Praktikum Data Mining": 2.84, "Praktikum Teknologi Web Service": 3.54, "Praktikum Machine Learning Ops": 3.21, "Praktikum Infrastruktur dan Manajemen Big Data": 3.88, "Praktikum Data Warehouse": 3.05, "Teknologi dan Tool Big Data": 3.16, "Neuro Computing": 3.58, "Workshop Analitika Data Terapan": 2.84, "Workshop Analisis Sosial Media": 3.42, "Ekonometrika Terapan": 3.07, "Teknik Presentasi Data": 2.61, "Technopreneur Sains Data": 3.89, "Bahasa Inggris Teknik": 3.29, "Bahasa Indonesia": 2.96, "Praktikum Neuro Computing": 3.71}, "ips_sem": {"Sem 1": 3.82, "Sem 2": 3.84, "Sem 3": 3.77, "Sem 4": 3.8}}, {"id": 3322600015, "name": "Najma Akmalina Ni'Ma", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Jombang", "cluster": "Sedang", "ips": 3.56, "absensi": 100.0, "pc1": 2.331917385537428, "pc2": 1.847707667246774, "bubble_size": 42.72, "courses": {"Aljabar Linier": 3.06, "Statistika Dasar": 3.72, "Pemrograman 1": 3.29, "Logika dan Algoritma": 2.95, "Basis Data": 3.63, "Matematika 1": 3.88, "Agama": 2.68, "Praktikum Statistika Dasar": 3.51, "Praktikum Pemrograman 1": 3.17, "Praktikum Basis Data": 3.94, "Pemodelan Statistik Terapan": 2.78, "Pemrograman 2": 3.55, "Kecerdasan Buatan": 3.09, "Pemrosesan Data": 2.91, "Manajemen Data": 3.82, "Matematika 2": 3.26, "Kewarganegaraan": 2.64, "Praktikum Pemodelan Statistik Terapan": 3.71, "Praktikum Pemrograman 2": 3.18, "Praktikum Kecerdasan Buatan": 2.87, "Praktikum Pemrosesan Data": 3.49, "Praktikum Manajemen Data": 3.33, "Matematika 3": 2.66, "Analisa Statistika Terapan": 3.18, "Pemrograman 3": 3.92, "Mesin Pembelajaran": 2.57, "Text Mining": 3.4, "Eksplorasi dan Visualisasi Data": 3.05, "Pancasila": 2.91, "Praktikum Analisa Statistika Terapan": 3.76, "Praktikum Pemrograman 3": 2.88, "Praktikum Mesin Pembelajaran": 3.61, "Praktikum Text Mining": 3.09, "Praktikum Eksplorasi dan Visualisasi Data": 2.74, "Data Mining": 3.27, "Teknologi Web Service": 2.96, "Machine Learning Ops": 3.73, "Infrastruktur dan Manajemen Big Data": 3.14, "Data Warehouse": 3.58, "Praktikum Data Mining": 3.01, "Praktikum Teknologi Web Service": 2.89, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.34, "Praktikum Data Warehouse": 3.17, "Teknologi dan Tool Big Data": 2.92, "Neuro Computing": 3.35, "Workshop Analitika Data Terapan": 3.14, "Workshop Analisis Sosial Media": 2.75, "Ekonometrika Terapan": 3.83, "Teknik Presentasi Data": 3.49, "Technopreneur Sains Data": 2.67, "Bahasa Inggris Teknik": 3.06, "Bahasa Indonesia": 3.61, "Praktikum Neuro Computing": 3.28}, "ips_sem": {"Sem 1": 3.84, "Sem 2": 3.84, "Sem 3": 3.91, "Sem 4": 3.8}}, {"id": 3322600016, "name": "Bagas Cahya Fajar Bastian", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Sangat Tinggi", "ips": 3.58, "absensi": 100.0, "pc1": 2.0697356619863725, "pc2": -0.0858091849891506, "bubble_size": 42.96, "courses": {"Aljabar Linier": 3.81, "Statistika Dasar": 3.08, "Pemrograman 1": 3.57, "Logika dan Algoritma": 2.76, "Basis Data": 3.44, "Matematika 1": 3.93, "Agama": 3.21, "Praktikum Statistika Dasar": 3.65, "Praktikum Pemrograman 1": 2.89, "Praktikum Basis Data": 3.12, "Pemodelan Statistik Terapan": 3.14, "Pemrograman 2": 3.69, "Kecerdasan Buatan": 2.83, "Pemrosesan Data": 3.41, "Manajemen Data": 3.95, "Matematika 2": 2.72, "Kewarganegaraan": 3.27, "Praktikum Pemodelan Statistik Terapan": 3.56, "Praktikum Pemrograman 2": 2.89, "Praktikum Kecerdasan Buatan": 3.77, "Praktikum Pemrosesan Data": 3.06, "Praktikum Manajemen Data": 3.48, "Matematika 3": 3.48, "Analisa Statistika Terapan": 3.02, "Pemrograman 3": 3.85, "Mesin Pembelajaran": 2.96, "Text Mining": 3.27, "Eksplorasi dan Visualisasi Data": 3.69, "Pancasila": 2.81, "Praktikum Analisa Statistika Terapan": 3.14, "Praktikum Pemrograman 3": 3.57, "Praktikum Mesin Pembelajaran": 2.63, "Praktikum Text Mining": 3.91, "Praktikum Eksplorasi dan Visualisasi Data": 3.08, "Data Mining": 3.29, "Teknologi Web Service": 3.05, "Machine Learning Ops": 3.62, "Infrastruktur dan Manajemen Big Data": 2.94, "Data Warehouse": 3.78, "Praktikum Data Mining": 3.12, "Praktikum Teknologi Web Service": 3.45, "Praktikum Machine Learning Ops": 2.87, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 3.21, "Teknologi dan Tool Big Data": 3.73, "Neuro Computing": 2.86, "Workshop Analitika Data Terapan": 3.51, "Workshop Analisis Sosial Media": 3.09, "Ekonometrika Terapan": 2.94, "Teknik Presentasi Data": 3.67, "Technopreneur Sains Data": 3.22, "Bahasa Inggris Teknik": 2.79, "Bahasa Indonesia": 3.88, "Praktikum Neuro Computing": 3.15}, "ips_sem": {"Sem 1": 3.89, "Sem 2": 3.79, "Sem 3": 3.9, "Sem 4": 3.84}}, {"id": 3322600017, "name": "Mutiara Sanny", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Blitar", "cluster": "Tinggi", "ips": 3.89, "absensi": 96.88, "pc1": 2.5356246633240866, "pc2": -2.303281742077113, "bubble_size": 46.68, "courses": {"Aljabar Linier": 2.54, "Statistika Dasar": 3.36, "Pemrograman 1": 3.92, "Logika dan Algoritma": 3.18, "Basis Data": 3.69, "Matematika 1": 2.97, "Agama": 3.84, "Praktikum Statistika Dasar": 3.41, "Praktikum Pemrograman 1": 3.05, "Praktikum Basis Data": 3.77, "Pemodelan Statistik Terapan": 2.96, "Pemrograman 2": 3.62, "Kecerdasan Buatan": 3.24, "Pemrosesan Data": 2.79, "Manajemen Data": 3.88, "Matematika 2": 3.11, "Kewarganegaraan": 2.67, "Praktikum Pemodelan Statistik Terapan": 3.94, "Praktikum Pemrograman 2": 3.29, "Praktikum Kecerdasan Buatan": 2.85, "Praktikum Pemrosesan Data": 3.53, "Praktikum Manajemen Data": 3.17, "Matematika 3": 2.95, "Analisa Statistika Terapan": 3.44, "Pemrograman 3": 3.16, "Mesin Pembelajaran": 2.72, "Text Mining": 3.54, "Eksplorasi dan Visualisasi Data": 2.69, "Pancasila": 3.11, "Praktikum Analisa Statistika Terapan": 3.83, "Praktikum Pemrograman 3": 2.92, "Praktikum Mesin Pembelajaran": 3.46, "Praktikum Text Mining": 3.07, "Praktikum Eksplorasi dan Visualisasi Data": 2.58, "Data Mining": 3.88, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.26, "Infrastruktur dan Manajemen Big Data": 2.95, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.18, "Praktikum Teknologi Web Service": 2.76, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.34, "Praktikum Data Warehouse": 3.01, "Teknologi dan Tool Big Data": 3.31, "Neuro Computing": 3.82, "Workshop Analitika Data Terapan": 2.69, "Workshop Analisis Sosial Media": 3.47, "Ekonometrika Terapan": 3.18, "Teknik Presentasi Data": 2.91, "Technopreneur Sains Data": 3.64, "Bahasa Inggris Teknik": 3.05, "Bahasa Indonesia": 2.76, "Praktikum Neuro Computing": 3.9}, "ips_sem": {"Sem 1": 3.87, "Sem 2": 3.83, "Sem 3": 3.83, "Sem 4": 3.87}}, {"id": 3322600018, "name": "Erina Nur Miftaqul Jannah", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Ponorogo", "cluster": "Tinggi", "ips": 3.5, "absensi": 98.44, "pc1": 2.255859340511909, "pc2": -3.2237540757880088, "bubble_size": 42.0, "courses": {"Aljabar Linier": 3.58, "Statistika Dasar": 2.74, "Pemrograman 1": 3.91, "Logika dan Algoritma": 3.26, "Basis Data": 3.69, "Matematika 1": 2.88, "Agama": 3.47, "Praktikum Statistika Dasar": 3.12, "Praktikum Pemrograman 1": 3.84, "Praktikum Basis Data": 3.05, "Pemodelan Statistik Terapan": 3.45, "Pemrograman 2": 2.74, "Kecerdasan Buatan": 3.91, "Pemrosesan Data": 3.08, "Manajemen Data": 2.98, "Matematika 2": 3.59, "Kewarganegaraan": 3.22, "Praktikum Pemodelan Statistik Terapan": 2.63, "Praktikum Pemrograman 2": 3.84, "Praktikum Kecerdasan Buatan": 3.15, "Praktikum Pemrosesan Data": 2.92, "Praktikum Manajemen Data": 3.66, "Matematika 3": 3.72, "Analisa Statistika Terapan": 3.19, "Pemrograman 3": 2.87, "Mesin Pembelajaran": 3.95, "Text Mining": 3.24, "Eksplorasi dan Visualisasi Data": 2.76, "Pancasila": 3.61, "Praktikum Analisa Statistika Terapan": 3.04, "Praktikum Pemrograman 3": 2.99, "Praktikum Mesin Pembelajaran": 3.38, "Praktikum Text Mining": 3.08, "Praktikum Eksplorasi dan Visualisasi Data": 2.65, "Data Mining": 3.54, "Teknologi Web Service": 2.87, "Machine Learning Ops": 3.21, "Infrastruktur dan Manajemen Big Data": 3.88, "Data Warehouse": 3.05, "Praktikum Data Mining": 3.62, "Praktikum Teknologi Web Service": 3.14, "Praktikum Machine Learning Ops": 2.94, "Praktikum Infrastruktur dan Manajemen Big Data": 3.78, "Praktikum Data Warehouse": 3.29, "Teknologi dan Tool Big Data": 2.85, "Neuro Computing": 3.59, "Workshop Analitika Data Terapan": 3.26, "Workshop Analisis Sosial Media": 2.97, "Ekonometrika Terapan": 3.12, "Teknik Presentasi Data": 3.74, "Technopreneur Sains Data": 2.63, "Bahasa Inggris Teknik": 3.48, "Bahasa Indonesia": 3.07, "Praktikum Neuro Computing": 3.91}, "ips_sem": {"Sem 1": 3.93, "Sem 2": 3.82, "Sem 3": 3.94, "Sem 4": 3.8}}, {"id": 3322600019, "name": "Bayu Kurniawan", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Blitar", "cluster": "Cukup", "ips": 3.31, "absensi": 100.0, "pc1": -1.7598126750276388, "pc2": 1.1416675761364714, "bubble_size": 39.72, "courses": {"Aljabar Linier": 3.17, "Statistika Dasar": 3.62, "Pemrograman 1": 2.59, "Logika dan Algoritma": 3.88, "Basis Data": 3.34, "Matematika 1": 3.71, "Agama": 2.95, "Praktikum Statistika Dasar": 3.49, "Praktikum Pemrograman 1": 3.08, "Praktikum Basis Data": 3.93, "Pemodelan Statistik Terapan": 3.03, "Pemrograman 2": 3.78, "Kecerdasan Buatan": 2.88, "Pemrosesan Data": 3.34, "Manajemen Data": 3.97, "Matematika 2": 2.7, "Kewarganegaraan": 3.4, "Praktikum Pemodelan Statistik Terapan": 3.61, "Praktikum Pemrograman 2": 2.81, "Praktikum Kecerdasan Buatan": 3.86, "Praktikum Pemrosesan Data": 3.12, "Praktikum Manajemen Data": 3.51, "Matematika 3": 2.97, "Analisa Statistika Terapan": 3.22, "Pemrograman 3": 3.68, "Mesin Pembelajaran": 2.84, "Text Mining": 3.51, "Eksplorasi dan Visualisasi Data": 3.09, "Pancasila": 2.73, "Praktikum Analisa Statistika Terapan": 3.9, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.61, "Praktikum Text Mining": 3.44, "Praktikum Eksplorasi dan Visualisasi Data": 3.78, "Data Mining": 3.41, "Teknologi Web Service": 3.09, "Machine Learning Ops": 2.96, "Infrastruktur dan Manajemen Big Data": 3.67, "Data Warehouse": 3.18, "Praktikum Data Mining": 3.45, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.27, "Praktikum Data Warehouse": 3.12, "Teknologi dan Tool Big Data": 3.21, "Neuro Computing": 2.78, "Workshop Analitika Data Terapan": 3.85, "Workshop Analisis Sosial Media": 3.16, "Ekonometrika Terapan": 2.94, "Teknik Presentasi Data": 3.53, "Technopreneur Sains Data": 3.69, "Bahasa Inggris Teknik": 2.81, "Bahasa Indonesia": 3.08, "Praktikum Neuro Computing": 3.42}, "ips_sem": {"Sem 1": 3.63, "Sem 2": 3.66, "Sem 3": 3.59, "Sem 4": 3.53}}, {"id": 3322600020, "name": "Muhammad Yusuf Rajabiyah", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Gresik", "cluster": "Cukup", "ips": 3.08, "absensi": 100.0, "pc1": -1.489603623466542, "pc2": 2.1329596228327383, "bubble_size": 36.96, "courses": {"Aljabar Linier": 2.67, "Statistika Dasar": 3.41, "Pemrograman 1": 3.09, "Logika dan Algoritma": 3.76, "Basis Data": 3.58, "Matematika 1": 2.83, "Agama": 3.94, "Praktikum Statistika Dasar": 3.21, "Praktikum Pemrograman 1": 3.65, "Praktikum Basis Data": 3.14, "Pemodelan Statistik Terapan": 2.93, "Pemrograman 2": 3.65, "Kecerdasan Buatan": 3.19, "Pemrosesan Data": 2.76, "Manajemen Data": 3.83, "Matematika 2": 3.28, "Kewarganegaraan": 2.66, "Praktikum Pemodelan Statistik Terapan": 3.9, "Praktikum Pemrograman 2": 3.07, "Praktikum Kecerdasan Buatan": 2.84, "Praktikum Pemrosesan Data": 3.57, "Praktikum Manajemen Data": 3.31, "Matematika 3": 2.95, "Analisa Statistika Terapan": 3.27, "Pemrograman 3": 3.06, "Mesin Pembelajaran": 2.89, "Text Mining": 3.59, "Eksplorasi dan Visualisasi Data": 3.11, "Pancasila": 2.77, "Praktikum Analisa Statistika Terapan": 3.84, "Praktikum Pemrograman 3": 3.26, "Praktikum Mesin Pembelajaran": 2.88, "Praktikum Text Mining": 3.47, "Praktikum Eksplorasi dan Visualisasi Data": 3.02, "Data Mining": 3.05, "Teknologi Web Service": 3.62, "Machine Learning Ops": 3.21, "Infrastruktur dan Manajemen Big Data": 2.95, "Data Warehouse": 3.78, "Praktikum Data Mining": 3.14, "Praktikum Teknologi Web Service": 3.41, "Praktikum Machine Learning Ops": 2.87, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 3.29, "Teknologi dan Tool Big Data": 3.62, "Neuro Computing": 3.11, "Workshop Analitika Data Terapan": 2.67, "Workshop Analisis Sosial Media": 3.88, "Ekonometrika Terapan": 3.24, "Teknik Presentasi Data": 2.95, "Technopreneur Sains Data": 3.46, "Bahasa Inggris Teknik": 3.19, "Bahasa Indonesia": 2.84, "Praktikum Neuro Computing": 3.71}, "ips_sem": {"Sem 1": 3.66, "Sem 2": 3.5, "Sem 3": 3.7, "Sem 4": 3.63}}, {"id": 3322600021, "name": "Abdul Muffid", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Bojonegoro", "cluster": "Sangat Tinggi", "ips": 3.42, "absensi": 100.0, "pc1": 2.1958522503040836, "pc2": 0.5175650948277987, "bubble_size": 41.04, "courses": {"Aljabar Linier": 3.85, "Statistika Dasar": 3.27, "Pemrograman 1": 3.64, "Logika dan Algoritma": 2.92, "Basis Data": 3.48, "Matematika 1": 3.96, "Agama": 2.75, "Praktikum Statistika Dasar": 3.11, "Praktikum Pemrograman 1": 3.72, "Praktikum Basis Data": 3.39, "Pemodelan Statistik Terapan": 3.26, "Pemrograman 2": 2.71, "Kecerdasan Buatan": 3.88, "Pemrosesan Data": 3.14, "Manajemen Data": 2.95, "Matematika 2": 3.52, "Kewarganegaraan": 3.37, "Praktikum Pemodelan Statistik Terapan": 2.61, "Praktikum Pemrograman 2": 3.79, "Praktikum Kecerdasan Buatan": 3.09, "Praktikum Pemrosesan Data": 2.9, "Praktikum Manajemen Data": 3.64, "Matematika 3": 2.69, "Analisa Statistika Terapan": 3.74, "Pemrograman 3": 3.18, "Mesin Pembelajaran": 2.91, "Text Mining": 3.56, "Eksplorasi dan Visualisasi Data": 3.09, "Pancasila": 2.63, "Praktikum Analisa Statistika Terapan": 3.88, "Praktikum Pemrograman 3": 3.33, "Praktikum Mesin Pembelajaran": 2.75, "Praktikum Text Mining": 3.61, "Praktikum Eksplorasi dan Visualisasi Data": 3.04, "Data Mining": 3.88, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.26, "Infrastruktur dan Manajemen Big Data": 2.96, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.18, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.45, "Praktikum Data Warehouse": 3.01, "Teknologi dan Tool Big Data": 2.93, "Neuro Computing": 3.57, "Workshop Analitika Data Terapan": 3.04, "Workshop Analisis Sosial Media": 2.76, "Ekonometrika Terapan": 3.81, "Teknik Presentasi Data": 3.28, "Technopreneur Sains Data": 2.65, "Bahasa Inggris Teknik": 3.49, "Bahasa Indonesia": 3.12, "Praktikum Neuro Computing": 3.9}, "ips_sem": {"Sem 1": 3.92, "Sem 2": 3.84, "Sem 3": 3.83, "Sem 4": 3.87}}, {"id": 3322600022, "name": "Taslim", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Kendari", "cluster": "Rendah", "ips": 3.17, "absensi": 98.8, "pc1": -2.275222764502414, "pc2": -1.9894280650015042, "bubble_size": 38.04, "courses": {"Aljabar Linier": 3.06, "Statistika Dasar": 3.89, "Pemrograman 1": 2.54, "Logika dan Algoritma": 3.31, "Basis Data": 3.67, "Matematika 1": 3.24, "Agama": 2.98, "Praktikum Statistika Dasar": 3.83, "Praktikum Pemrograman 1": 3.15, "Praktikum Basis Data": 3.56, "Pemodelan Statistik Terapan": 3.07, "Pemrograman 2": 3.73, "Kecerdasan Buatan": 2.85, "Pemrosesan Data": 3.46, "Manajemen Data": 3.92, "Matematika 2": 2.68, "Kewarganegaraan": 3.33, "Praktikum Pemodelan Statistik Terapan": 3.55, "Praktikum Pemrograman 2": 2.77, "Praktikum Kecerdasan Buatan": 3.81, "Praktikum Pemrosesan Data": 3.18, "Praktikum Manajemen Data": 3.42, "Matematika 3": 2.98, "Analisa Statistika Terapan": 3.42, "Pemrograman 3": 3.16, "Mesin Pembelajaran": 2.81, "Text Mining": 2.74, "Eksplorasi dan Visualisasi Data": 3.58, "Pancasila": 3.21, "Praktikum Analisa Statistika Terapan": 2.96, "Praktikum Pemrograman 3": 3.49, "Praktikum Mesin Pembelajaran": 3.07, "Praktikum Text Mining": 2.65, "Praktikum Eksplorasi dan Visualisasi Data": 3.84, "Data Mining": 3.14, "Teknologi Web Service": 3.67, "Machine Learning Ops": 2.89, "Infrastruktur dan Manajemen Big Data": 3.45, "Data Warehouse": 3.21, "Praktikum Data Mining": 3.78, "Praktikum Teknologi Web Service": 2.94, "Praktikum Machine Learning Ops": 3.56, "Praktikum Infrastruktur dan Manajemen Big Data": 3.09, "Praktikum Data Warehouse": 3.32, "Teknologi dan Tool Big Data": 3.18, "Neuro Computing": 2.74, "Workshop Analitika Data Terapan": 3.56, "Workshop Analisis Sosial Media": 3.91, "Ekonometrika Terapan": 2.62, "Teknik Presentasi Data": 3.07, "Technopreneur Sains Data": 3.44, "Bahasa Inggris Teknik": 2.89, "Bahasa Indonesia": 3.69, "Praktikum Neuro Computing": 3.25}, "ips_sem": {"Sem 1": 3.63, "Sem 2": 3.66, "Sem 3": 3.47, "Sem 4": 3.3}}, {"id": 3322600023, "name": "Johan Winarwan Nawawi", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Ponorogo", "cluster": "Sangat Tinggi", "ips": 3.64, "absensi": 100.0, "pc1": 2.5273658722140215, "pc2": 1.254014233639953, "bubble_size": 43.68, "courses": {"Aljabar Linier": 3.74, "Statistika Dasar": 2.69, "Pemrograman 1": 3.52, "Logika dan Algoritma": 3.18, "Basis Data": 3.91, "Matematika 1": 3.44, "Agama": 2.86, "Praktikum Statistika Dasar": 3.08, "Praktikum Pemrograman 1": 3.63, "Praktikum Basis Data": 3.29, "Pemodelan Statistik Terapan": 2.99, "Pemrograman 2": 3.6, "Kecerdasan Buatan": 3.21, "Pemrosesan Data": 2.82, "Manajemen Data": 3.76, "Matematika 2": 3.16, "Kewarganegaraan": 2.65, "Praktikum Pemodelan Statistik Terapan": 3.93, "Praktikum Pemrograman 2": 3.11, "Praktikum Kecerdasan Buatan": 2.89, "Praktikum Pemrosesan Data": 3.5, "Praktikum Manajemen Data": 3.35, "Matematika 3": 3.12, "Analisa Statistika Terapan": 2.89, "Pemrograman 3": 3.71, "Mesin Pembelajaran": 3.05, "Text Mining": 2.93, "Eksplorasi dan Visualisasi Data": 3.27, "Pancasila": 3.66, "Praktikum Analisa Statistika Terapan": 2.78, "Praktikum Pemrograman 3": 3.44, "Praktikum Mesin Pembelajaran": 3.09, "Praktikum Text Mining": 2.61, "Praktikum Eksplorasi dan Visualisasi Data": 3.92, "Data Mining": 2.97, "Teknologi Web Service": 3.41, "Machine Learning Ops": 3.05, "Infrastruktur dan Manajemen Big Data": 3.62, "Data Warehouse": 3.18, "Praktikum Data Mining": 2.84, "Praktikum Teknologi Web Service": 3.75, "Praktikum Machine Learning Ops": 3.29, "Praktikum Infrastruktur dan Manajemen Big Data": 3.88, "Praktikum Data Warehouse": 3.11, "Teknologi dan Tool Big Data": 2.83, "Neuro Computing": 3.47, "Workshop Analitika Data Terapan": 3.12, "Workshop Analisis Sosial Media": 2.68, "Ekonometrika Terapan": 3.88, "Teknik Presentasi Data": 3.21, "Technopreneur Sains Data": 2.95, "Bahasa Inggris Teknik": 3.54, "Bahasa Indonesia": 3.06, "Praktikum Neuro Computing": 3.72}, "ips_sem": {"Sem 1": 3.87, "Sem 2": 3.92, "Sem 3": 3.87, "Sem 4": 3.84}}, {"id": 3322600024, "name": "Naufal Ubaidillah Izzat", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Bangkalan", "cluster": "Rendah", "ips": 3.0, "absensi": 96.09, "pc1": -3.7771612892202096, "pc2": -0.37573242387231004, "bubble_size": 36.0, "courses": {"Aljabar Linier": 3.12, "Statistika Dasar": 3.47, "Pemrograman 1": 3.85, "Logika dan Algoritma": 2.78, "Basis Data": 3.59, "Matematika 1": 3.26, "Agama": 2.93, "Praktikum Statistika Dasar": 3.71, "Praktikum Pemrograman 1": 3.04, "Praktikum Basis Data": 3.92, "Pemodelan Statistik Terapan": 3.18, "Pemrograman 2": 2.75, "Kecerdasan Buatan": 3.85, "Pemrosesan Data": 3.1, "Manajemen Data": 2.97, "Matematika 2": 3.57, "Kewarganegaraan": 3.24, "Praktikum Pemodelan Statistik Terapan": 2.62, "Praktikum Pemrograman 2": 3.9, "Praktikum Kecerdasan Buatan": 3.04, "Praktikum Pemrosesan Data": 2.91, "Praktikum Manajemen Data": 3.68, "Matematika 3": 3.09, "Analisa Statistika Terapan": 2.84, "Pemrograman 3": 3.63, "Mesin Pembelajaran": 3.18, "Text Mining": 2.95, "Eksplorasi dan Visualisasi Data": 3.47, "Pancasila": 3.06, "Praktikum Analisa Statistika Terapan": 2.71, "Praktikum Pemrograman 3": 3.89, "Praktikum Mesin Pembelajaran": 3.24, "Praktikum Text Mining": 2.67, "Praktikum Eksplorasi dan Visualisasi Data": 3.55, "Data Mining": 3.54, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.26, "Infrastruktur dan Manajemen Big Data": 2.95, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.21, "Praktikum Teknologi Web Service": 3.84, "Praktikum Machine Learning Ops": 2.87, "Praktikum Infrastruktur dan Manajemen Big Data": 3.45, "Praktikum Data Warehouse": 3.12, "Teknologi dan Tool Big Data": 3.59, "Neuro Computing": 2.77, "Workshop Analitika Data Terapan": 3.04, "Workshop Analisis Sosial Media": 3.86, "Ekonometrika Terapan": 3.19, "Teknik Presentasi Data": 2.91, "Technopreneur Sains Data": 3.41, "Bahasa Inggris Teknik": 3.68, "Bahasa Indonesia": 2.64, "Praktikum Neuro Computing": 3.27}, "ips_sem": {"Sem 1": 3.35, "Sem 2": 3.0, "Sem 3": 3.07, "Sem 4": 3.34}}, {"id": 3322600025, "name": "Eky Fernanda Setyawan Putra", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Cukup", "ips": 2.81, "absensi": 100.0, "pc1": -1.5817954779787895, "pc2": 0.5134076115077582, "bubble_size": 33.72, "courses": {"Aljabar Linier": 2.61, "Statistika Dasar": 3.36, "Pemrograman 1": 3.07, "Logika dan Algoritma": 3.84, "Basis Data": 3.28, "Matematika 1": 3.95, "Agama": 2.89, "Praktikum Statistika Dasar": 3.54, "Praktikum Pemrograman 1": 3.19, "Praktikum Basis Data": 3.68, "Pemodelan Statistik Terapan": 3.05, "Pemrograman 2": 3.7, "Kecerdasan Buatan": 2.87, "Pemrosesan Data": 3.43, "Manajemen Data": 3.94, "Matematika 2": 2.73, "Kewarganegaraan": 3.29, "Praktikum Pemodelan Statistik Terapan": 3.63, "Praktikum Pemrograman 2": 2.8, "Praktikum Kecerdasan Buatan": 3.83, "Praktikum Pemrosesan Data": 3.13, "Praktikum Manajemen Data": 3.48, "Matematika 3": 3.11, "Analisa Statistika Terapan": 2.82, "Pemrograman 3": 3.78, "Mesin Pembelajaran": 3.04, "Text Mining": 2.99, "Eksplorasi dan Visualisasi Data": 3.36, "Pancasila": 3.15, "Praktikum Analisa Statistika Terapan": 2.73, "Praktikum Pemrograman 3": 2.91, "Praktikum Mesin Pembelajaran": 3.34, "Praktikum Text Mining": 3.02, "Praktikum Eksplorasi dan Visualisasi Data": 2.66, "Data Mining": 3.88, "Teknologi Web Service": 3.34, "Machine Learning Ops": 2.96, "Infrastruktur dan Manajemen Big Data": 3.17, "Data Warehouse": 3.62, "Praktikum Data Mining": 3.05, "Praktikum Teknologi Web Service": 2.91, "Praktikum Machine Learning Ops": 3.78, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.09, "Teknologi dan Tool Big Data": 3.33, "Neuro Computing": 3.92, "Workshop Analitika Data Terapan": 2.85, "Workshop Analisis Sosial Media": 3.48, "Ekonometrika Terapan": 3.09, "Teknik Presentasi Data": 2.71, "Technopreneur Sains Data": 3.65, "Bahasa Inggris Teknik": 3.14, "Bahasa Indonesia": 2.96, "Praktikum Neuro Computing": 3.81}, "ips_sem": {"Sem 1": 3.61, "Sem 2": 3.63, "Sem 3": 3.77, "Sem 4": 3.67}}, {"id": 3322600026, "name": "Firmanda Wahyunita", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Surabaya", "cluster": "Tinggi", "ips": 3.08, "absensi": 99.17, "pc1": -0.7303105255647143, "pc2": -2.8844258162085232, "bubble_size": 36.96, "courses": {"Aljabar Linier": 3.93, "Statistika Dasar": 3.14, "Pemrograman 1": 3.58, "Logika dan Algoritma": 2.96, "Basis Data": 3.42, "Matematika 1": 3.79, "Agama": 2.73, "Praktikum Statistika Dasar": 3.25, "Praktikum Pemrograman 1": 3.66, "Praktikum Basis Data": 3.09, "Pemodelan Statistik Terapan": 3.12, "Pemrograman 2": 3.48, "Kecerdasan Buatan": 2.79, "Pemrosesan Data": 3.66, "Manajemen Data": 3.21, "Matematika 2": 2.94, "Kewarganegaraan": 3.87, "Praktikum Pemodelan Statistik Terapan": 3.05, "Praktikum Pemrograman 2": 3.54, "Praktikum Kecerdasan Buatan": 2.83, "Praktikum Pemrosesan Data": 3.91, "Praktikum Manajemen Data": 3.27, "Matematika 3": 3.57, "Analisa Statistika Terapan": 3.19, "Pemrograman 3": 2.84, "Mesin Pembelajaran": 3.88, "Text Mining": 3.07, "Eksplorasi dan Visualisasi Data": 2.95, "Pancasila": 3.41, "Praktikum Analisa Statistika Terapan": 3.72, "Praktikum Pemrograman 3": 2.79, "Praktikum Mesin Pembelajaran": 3.26, "Praktikum Text Mining": 3.09, "Praktikum Eksplorasi dan Visualisasi Data": 2.61, "Data Mining": 3.21, "Teknologi Web Service": 2.89, "Machine Learning Ops": 3.54, "Infrastruktur dan Manajemen Big Data": 3.12, "Data Warehouse": 3.78, "Praktikum Data Mining": 3.27, "Praktikum Teknologi Web Service": 2.95, "Praktikum Machine Learning Ops": 3.67, "Praktikum Infrastruktur dan Manajemen Big Data": 3.05, "Praktikum Data Warehouse": 3.41, "Teknologi dan Tool Big Data": 2.79, "Neuro Computing": 3.52, "Workshop Analitika Data Terapan": 3.17, "Workshop Analisis Sosial Media": 2.88, "Ekonometrika Terapan": 3.74, "Teknik Presentasi Data": 3.26, "Technopreneur Sains Data": 2.67, "Bahasa Inggris Teknik": 3.93, "Bahasa Indonesia": 3.08, "Praktikum Neuro Computing": 3.45}, "ips_sem": {"Sem 1": 3.63, "Sem 2": 3.66, "Sem 3": 3.83, "Sem 4": 3.76}}, {"id": 3322600027, "name": "Faza Muhammad Faqihuddien", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Rendah", "ips": 3.56, "absensi": 97.66, "pc1": -1.2465001368561357, "pc2": -2.3259935132898586, "bubble_size": 42.72, "courses": {"Aljabar Linier": 3.21, "Statistika Dasar": 3.88, "Pemrograman 1": 2.57, "Logika dan Algoritma": 3.49, "Basis Data": 3.11, "Matematika 1": 3.65, "Agama": 2.94, "Praktikum Statistika Dasar": 3.82, "Praktikum Pemrograman 1": 3.37, "Praktikum Basis Data": 3.74, "Pemodelan Statistik Terapan": 2.88, "Pemrograman 2": 3.59, "Kecerdasan Buatan": 3.14, "Pemrosesan Data": 2.76, "Manajemen Data": 3.72, "Matematika 2": 3.36, "Kewarganegaraan": 2.69, "Praktikum Pemodelan Statistik Terapan": 3.81, "Praktikum Pemrograman 2": 3.09, "Praktikum Kecerdasan Buatan": 2.97, "Praktikum Pemrosesan Data": 3.45, "Praktikum Manajemen Data": 3.63, "Matematika 3": 3.64, "Analisa Statistika Terapan": 3.12, "Pemrograman 3": 2.87, "Mesin Pembelajaran": 3.9, "Text Mining": 3.44, "Eksplorasi dan Visualisasi Data": 2.75, "Pancasila": 3.18, "Praktikum Analisa Statistika Terapan": 3.61, "Praktikum Pemrograman 3": 2.92, "Praktikum Mesin Pembelajaran": 3.07, "Praktikum Text Mining": 3.84, "Praktikum Eksplorasi dan Visualisasi Data": 2.69, "Data Mining": 3.09, "Teknologi Web Service": 3.62, "Machine Learning Ops": 3.18, "Infrastruktur dan Manajemen Big Data": 2.87, "Data Warehouse": 3.45, "Praktikum Data Mining": 3.78, "Praktikum Teknologi Web Service": 3.26, "Praktikum Machine Learning Ops": 2.94, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 3.21, "Teknologi dan Tool Big Data": 3.67, "Neuro Computing": 2.94, "Workshop Analitika Data Terapan": 3.21, "Workshop Analisis Sosial Media": 3.49, "Ekonometrika Terapan": 2.83, "Teknik Presentasi Data": 3.89, "Technopreneur Sains Data": 3.06, "Bahasa Inggris Teknik": 2.76, "Bahasa Indonesia": 3.58, "Praktikum Neuro Computing": 3.12}, "ips_sem": {"Sem 1": 3.58, "Sem 2": 3.68, "Sem 3": 3.77, "Sem 4": 3.58}}, {"id": 3322600028, "name": "Calysta Moza Salsabilla", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Ogan Komering Ilir", "cluster": "Tinggi", "ips": 3.67, "absensi": 98.44, "pc1": 1.5887269944899325, "pc2": -1.0126452695028252, "bubble_size": 44.04, "courses": {"Aljabar Linier": 3.24, "Statistika Dasar": 3.81, "Pemrograman 1": 2.69, "Logika dan Algoritma": 3.57, "Basis Data": 3.12, "Matematika 1": 3.94, "Agama": 2.88, "Praktikum Statistika Dasar": 3.46, "Praktikum Pemrograman 1": 3.09, "Praktikum Basis Data": 3.68, "Pemodelan Statistik Terapan": 3.25, "Pemrograman 2": 2.91, "Kecerdasan Buatan": 3.84, "Pemrosesan Data": 3.18, "Manajemen Data": 2.85, "Matematika 2": 3.52, "Kewarganegaraan": 3.07, "Praktikum Pemodelan Statistik Terapan": 2.74, "Praktikum Pemrograman 2": 3.93, "Praktikum Kecerdasan Buatan": 3.41, "Praktikum Pemrosesan Data": 2.98, "Praktikum Manajemen Data": 3.67, "Matematika 3": 3.55, "Analisa Statistika Terapan": 3.11, "Pemrograman 3": 2.81, "Mesin Pembelajaran": 3.96, "Text Mining": 3.27, "Eksplorasi dan Visualisasi Data": 2.88, "Pancasila": 3.49, "Praktikum Analisa Statistika Terapan": 3.05, "Praktikum Pemrograman 3": 2.63, "Praktikum Mesin Pembelajaran": 3.71, "Praktikum Text Mining": 3.14, "Praktikum Eksplorasi dan Visualisasi Data": 2.97, "Data Mining": 3.75, "Teknologi Web Service": 3.29, "Machine Learning Ops": 3.05, "Infrastruktur dan Manajemen Big Data": 2.96, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.14, "Praktikum Teknologi Web Service": 3.88, "Praktikum Machine Learning Ops": 2.84, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.09, "Teknologi dan Tool Big Data": 3.05, "Neuro Computing": 3.78, "Workshop Analitika Data Terapan": 2.69, "Workshop Analisis Sosial Media": 3.44, "Ekonometrika Terapan": 3.23, "Teknik Presentasi Data": 2.91, "Technopreneur Sains Data": 3.61, "Bahasa Inggris Teknik": 3.18, "Bahasa Indonesia": 2.84, "Praktikum Neuro Computing": 3.9}, "ips_sem": {"Sem 1": 3.87, "Sem 2": 3.78, "Sem 3": 3.79, "Sem 4": 3.79}}, {"id": 3322600029, "name": "Muhammad Rafi Jauhar Pralistio", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Madiun", "cluster": "Rendah", "ips": 3.06, "absensi": 99.22, "pc1": -2.7670622519629045, "pc2": -1.4838852229522264, "bubble_size": 36.72, "courses": {"Aljabar Linier": 3.75, "Statistika Dasar": 2.61, "Pemrograman 1": 3.38, "Logika dan Algoritma": 3.91, "Basis Data": 3.27, "Matematika 1": 3.59, "Agama": 2.84, "Praktikum Statistika Dasar": 3.14, "Praktikum Pemrograman 1": 3.72, "Praktikum Basis Data": 3.49, "Pemodelan Statistik Terapan": 3.06, "Pemrograman 2": 3.71, "Kecerdasan Buatan": 2.87, "Pemrosesan Data": 3.49, "Manajemen Data": 3.15, "Matematika 2": 2.81, "Kewarganegaraan": 3.88, "Praktikum Pemodelan Statistik Terapan": 3.24, "Praktikum Pemrograman 2": 3.6, "Praktikum Kecerdasan Buatan": 2.95, "Praktikum Pemrosesan Data": 3.92, "Praktikum Manajemen Data": 3.33, "Matematika 3": 2.83, "Analisa Statistika Terapan": 3.59, "Pemrograman 3": 3.06, "Mesin Pembelajaran": 2.91, "Text Mining": 3.28, "Eksplorasi dan Visualisasi Data": 3.74, "Pancasila": 2.67, "Praktikum Analisa Statistika Terapan": 3.86, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.52, "Praktikum Eksplorasi dan Visualisasi Data": 3.08, "Data Mining": 2.95, "Teknologi Web Service": 3.54, "Machine Learning Ops": 3.21, "Infrastruktur dan Manajemen Big Data": 3.78, "Data Warehouse": 3.09, "Praktikum Data Mining": 2.89, "Praktikum Teknologi Web Service": 3.62, "Praktikum Machine Learning Ops": 3.27, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.12, "Teknologi dan Tool Big Data": 2.97, "Neuro Computing": 3.36, "Workshop Analitika Data Terapan": 3.71, "Workshop Analisis Sosial Media": 2.65, "Ekonometrika Terapan": 3.08, "Teknik Presentasi Data": 3.54, "Technopreneur Sains Data": 2.79, "Bahasa Inggris Teknik": 3.87, "Bahasa Indonesia": 3.14, "Praktikum Neuro Computing": 3.22}, "ips_sem": {"Sem 1": 3.39, "Sem 2": 3.53, "Sem 3": 3.73, "Sem 4": 3.61}}];
+const SUMMARY  = {"Sangat Tinggi": {"count": 6, "avg_ips": 3.52, "avg_absensi": 99.41, "IPS Sem 1": 3.877, "IPS Sem 2": 3.847, "IPS Sem 3": 3.837, "IPS Sem 4": 3.827}, "Tinggi": {"count": 5, "avg_ips": 3.556, "avg_absensi": 97.69, "IPS Sem 1": 3.808, "IPS Sem 2": 3.766, "IPS Sem 3": 3.864, "IPS Sem 4": 3.768}, "Sedang": {"count": 4, "avg_ips": 3.453, "avg_absensi": 99.8, "IPS Sem 1": 3.815, "IPS Sem 2": 3.78, "IPS Sem 3": 3.903, "IPS Sem 4": 3.795}, "Cukup": {"count": 7, "avg_ips": 3.127, "avg_absensi": 99.8, "IPS Sem 1": 3.633, "IPS Sem 2": 3.601, "IPS Sem 3": 3.643, "IPS Sem 4": 3.6}, "Rendah": {"count": 6, "avg_ips": 3.132, "avg_absensi": 98.42, "IPS Sem 1": 3.443, "IPS Sem 2": 3.49, "IPS Sem 3": 3.473, "IPS Sem 4": 3.478}};
+const COLORS   = {"Sangat Tinggi": "#28C76F", "Tinggi": "#00CFE8", "Sedang": "#7367F0", "Cukup": "#FF9F43", "Rendah": "#EA5455"};
+const LABELS   = ["Sangat Tinggi", "Tinggi", "Sedang", "Cukup", "Rendah"];
+const ADVICE   = {"Sangat Tinggi": {"icon": "🏆", "tips": ["Proyek riset & kompetisi nasional/internasional.", "Pertimbangkan fast-track S2 atau beasiswa.", "Libatkan sebagai tutor sebaya."]}, "Tinggi": {"icon": "⭐", "tips": ["Akses materi pengayaan & sertifikasi profesional.", "Dorong partisipasi seminar & proyek.", "Rekomendasikan program magang industri."]}, "Sedang": {"icon": "📘", "tips": ["Bimbingan rutin setiap 2 minggu.", "Sumber belajar tambahan (modul, kelompok belajar).", "Fokus perbaikan mata kuliah lemah."]}, "Cukup": {"icon": "⚠️", "tips": ["Konseling akademik individual 1×/bulan.", "Program remedial terstruktur.", "Manfaatkan kehadiran baik untuk keaktifan kelas."]}, "Rendah": {"icon": "🚨", "tips": ["Intervensi segera & monitoring kehadiran mingguan.", "Koordinasi dengan orang tua/wali.", "Evaluasi beban SKS sesuai kemampuan."]}};
+const CHARTS   = {"ips_trend": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "ips_dist": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "absen": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "outlier": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "corr": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "princals": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "eval": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="};
+const EVR      = [36.6, 26.22, 11.03, 7.41];
+
+const MPL_BG = '#141824', MPL_SURF = '#1a2130', MPL_BORDER = '#2a3344';
+
+// ── Navigation ──
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  if (id==='overview')    setTimeout(()=>{drawBar();drawIpsBar();},50);
+  if (id==='clustering')  setTimeout(()=>{drawBubble(STUDENTS);buildHeatmap();drawPcCanvas();},50);
+  if (id==='princals')    setTimeout(()=>{drawPcCanvas();buildBubbleLegend('pc-legend');},50);
+  if (id==='evaluasi')    setTimeout(drawEvalHeatmap,50);
+  if (id==='rekomendasi') setTimeout(drawRadar,50);
+  if (id==='eda')         setTimeout(()=>{buildCourseClusterTabs();drawCourseBar(LABELS[0]);},50);
+}
+
+// ── Tabs ──
+function switchTab(group, id, btn) {
+  document.querySelectorAll('#eda-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('[id^="'+group+'-"]').forEach(p=>p.classList.remove('active'));
+  document.getElementById(group+'-'+id).classList.add('active');
+  if(id==='courses') setTimeout(()=>{buildCourseClusterTabs();drawCourseBar(LABELS[0]);},50);
+}
+
+// ── Metric cards ──
+(function buildMetrics(){
+  const n=STUDENTS.length, avgIPS=(STUDENTS.reduce((s,st)=>s+st.ips,0)/n).toFixed(3);
+  const data=[
+    {val:n,lbl:'Total Mahasiswa',c:'#4da6ff'},
+    {val:LABELS.length,lbl:'Jumlah Cluster',c:'#43e97b'},
+    {val:avgIPS,lbl:'Rata-Rata IPK',c:'#f9ca24'},
+    {val:'0.3485',lbl:'Silhouette',c:'#fd9644'},
+    {val:'74.46%',lbl:'BSS/TSS',c:'#fc5c65'},
+  ];
+  document.getElementById('metric-row').innerHTML = data.map(d=>`
+    <div class="metric-card">
+      <div class="metric-accent" style="background:${d.c}"></div>
+      <div class="metric-val">${d.val}</div>
+      <div class="metric-lbl">${d.lbl}</div>
+    </div>`).join('');
+})();
+
+// ── Canvas helpers ──
+function initCanvas(id, h) {
+  const c=document.getElementById(id), dpr=window.devicePixelRatio||1;
+  const W=c.clientWidth||c.parentElement.clientWidth||600, H=parseInt(h)||300;
+  c.width=W*dpr; c.height=H*dpr;
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  return {ctx,W,H,dpr};
+}
+
+// ── Bar chart ──
+function drawBar(){
+  const {ctx,W,H}=initCanvas('bar-canvas',220);
+  const lbl=LABELS, cnt=lbl.map(l=>STUDENTS.filter(s=>s.cluster===l).length);
+  const max=Math.max(...cnt), pad=40, gap=14;
+  const bH=Math.min(36,(H-2*pad-gap*(lbl.length-1))/lbl.length);
+  ctx.fillStyle=MPL_BG; ctx.fillRect(0,0,W,H);
+  lbl.forEach((l,i)=>{
+    const by=pad+i*(bH+gap), bw=(cnt[i]/max)*(W-2*pad-80);
+    ctx.fillStyle=COLORS[l]+'cc';
+    ctx.beginPath(); ctx.roundRect(pad,by,bw,bH,[3]); ctx.fill();
+    ctx.fillStyle='#c8d8e8'; ctx.font=`600 11px DM Sans`; ctx.textAlign='left';
+    ctx.fillText(cnt[i]+' mhs', pad+bw+8, by+bH/2+4);
+    ctx.fillStyle='#8892a4'; ctx.font=`10px DM Sans`;
+    ctx.fillText(l, pad-2, by-5);
+  });
+}
+
+function drawIpsBar(){
+  const {ctx,W,H}=initCanvas('ips-canvas',220);
+  const lbl=LABELS, vals=lbl.map(l=>{const sub=STUDENTS.filter(s=>s.cluster===l);return sub.reduce((a,s)=>a+s.ips,0)/sub.length;});
+  const pad=40, gap=14, bW=Math.min(52,(W-2*pad-gap*(lbl.length-1))/lbl.length);
+  const yMin=2.8, yMax=4.0;
+  const scY=v=>H-pad-(v-yMin)/(yMax-yMin)*(H-2*pad);
+  ctx.fillStyle=MPL_BG; ctx.fillRect(0,0,W,H);
+  // Grid
+  [3.0,3.2,3.4,3.6,3.8,4.0].forEach(y=>{
+    const py=scY(y); ctx.strokeStyle='#1e2a3a'; ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad,py);ctx.lineTo(W-10,py);ctx.stroke();
+    ctx.fillStyle='#5a6a80';ctx.font='9px DM Sans';ctx.textAlign='right';
+    ctx.fillText(y.toFixed(1),pad-4,py+3);
+  });
+  lbl.forEach((l,i)=>{
+    const bx=pad+i*(bW+gap), bh=H-pad-scY(vals[i]), by=scY(vals[i]);
+    ctx.fillStyle=COLORS[l]+'cc';
+    ctx.beginPath();ctx.roundRect(bx,by,bW,bh,[4,4,0,0]);ctx.fill();
+    ctx.fillStyle='#c8d8e8';ctx.font='bold 10px DM Sans';ctx.textAlign='center';
+    ctx.fillText(vals[i].toFixed(3),bx+bW/2,by-5);
+    ctx.fillStyle='#8892a4';ctx.font='9px DM Sans';
+    const short=l.replace('Sangat ','S.').replace('Tinggi','T').replace('Rendah','R').replace('Sedang','Sed').replace('Cukup','C');
+    ctx.fillText(short,bx+bW/2,H-pad+13);
+  });
+}
+
+// ── PC scatter ──
+function drawPcCanvas(){
+  const id=document.getElementById('page-clustering').classList.contains('active')?'bubble-canvas':'pc-canvas';
+  const el=document.getElementById(id); if(!el) return;
+  const {ctx,W,H}=initCanvas(id,380);
+  const pad=44;
+  const x1=Math.min(...STUDENTS.map(s=>s.pc1))-0.5, x2=Math.max(...STUDENTS.map(s=>s.pc1))+0.5;
+  const y1=Math.min(...STUDENTS.map(s=>s.pc2))-0.5, y2=Math.max(...STUDENTS.map(s=>s.pc2))+0.5;
+  const sX=v=>pad+(v-x1)/(x2-x1)*(W-2*pad);
+  const sY=v=>H-pad-(v-y1)/(y2-y1)*(H-2*pad);
+  ctx.fillStyle=MPL_BG; ctx.fillRect(0,0,W,H);
+  // Axes
+  ctx.strokeStyle='#2a3344'; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad,pad);ctx.lineTo(pad,H-pad);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad,H-pad);ctx.lineTo(W-pad,H-pad);ctx.stroke();
+  ctx.fillStyle='#5a6a80';ctx.font='10px DM Sans';ctx.textAlign='center';
+  ctx.fillText(`PC1 (${EVR[0]?EVR[0].toFixed(1):'?'}%)`,W/2,H-pad+16);
+  ctx.save();ctx.translate(14,H/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText(`PC2 (${EVR[1]?EVR[1].toFixed(1):'?'}%)`,0,0);ctx.restore();
+  STUDENTS.forEach(s=>{
+    const cx=sX(s.pc1), cy=sY(s.pc2), r=7;
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle=COLORS[s.cluster]+'cc';
+    ctx.strokeStyle=COLORS[s.cluster]; ctx.lineWidth=1.5;
+    ctx.fill();ctx.stroke();
+  });
+  if(id==='pc-canvas') buildBubbleLegend('pc-legend');
+}
+
+// ── Bubble Chart ──
+function drawBubble(filtered){
+  const {ctx,W,H}=initCanvas('bubble-canvas',400);
+  const pad=44;
+  const pts=filtered;
+  if(!pts.length) return;
+  const x1=Math.min(...pts.map(s=>s.pc1))-0.5, x2=Math.max(...pts.map(s=>s.pc1))+0.5;
+  const y1=Math.min(...pts.map(s=>s.pc2))-0.5, y2=Math.max(...pts.map(s=>s.pc2))+0.5;
+  const sX=v=>pad+(v-x1)/(x2-x1)*(W-2*pad);
+  const sY=v=>H-pad-(v-y1)/(y2-y1)*(H-2*pad);
+  ctx.fillStyle=MPL_BG; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#2a3344';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad,pad);ctx.lineTo(pad,H-pad);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad,H-pad);ctx.lineTo(W-pad,H-pad);ctx.stroke();
+  ctx.fillStyle='#5a6a80';ctx.font='10px DM Sans';ctx.textAlign='center';
+  ctx.fillText('PC1',W/2,H-6);
+  ctx.save();ctx.translate(14,H/2);ctx.rotate(-Math.PI/2);ctx.fillText('PC2',0,0);ctx.restore();
+  pts.forEach(s=>{
+    const cx=sX(s.pc1), cy=sY(s.pc2), r=s.bubble_size/2.2;
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle=COLORS[s.cluster]+'99';
+    ctx.strokeStyle=COLORS[s.cluster]; ctx.lineWidth=1.5;
+    ctx.fill();ctx.stroke();
+  });
+  const canvas=document.getElementById('bubble-canvas');
+  canvas._pts=pts.map(s=>{return{...s,cx:sX(s.pc1),cy:sY(s.pc2),r:s.bubble_size/2.2}});
+  buildBubbleLegend('bubble-legend');
+}
+
+function buildBubbleLegend(id){
+  const el=document.getElementById(id); if(!el) return;
+  el.innerHTML=LABELS.map(l=>`<div class="legend-item">
+    <div class="legend-dot" style="background:${COLORS[l]}"></div>${l}</div>`).join('');
+}
+
+// Bubble interactions
+(function(){
+  const canvas=document.getElementById('bubble-canvas'), tip=document.getElementById('tooltip');
+  function pos(e){const r=canvas.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+  function hit(px,py){return(canvas._pts||[]).find(p=>Math.hypot(p.cx-px,p.cy-py)<=p.r+4)}
+  canvas.addEventListener('mousemove',e=>{
+    const[px,py]=pos(e),h=hit(px,py);
+    if(h){canvas.style.cursor='pointer';tip.style.display='block';
+      tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-10)+'px';
+      tip.innerHTML=`<b>${h.name}</b><br>NRP: ${h.id}<br>IPS: ${h.ips.toFixed(3)}<br>Cluster: ${h.cluster}`;
+    }else{canvas.style.cursor='crosshair';tip.style.display='none';}
+  });
+  canvas.addEventListener('mouseleave',()=>tip.style.display='none');
+  canvas.addEventListener('click',e=>{const[px,py]=pos(e),h=hit(px,py);if(h)openModal(h);});
+})();
+
+// ── Heatmap table ──
+function buildHeatmap(){
+  const feats=Object.keys(Object.values(SUMMARY)[0]).filter(k=>k!=='count');
+  let html=`<thead><tr><th>Cluster</th><th>Jumlah</th>${feats.map(f=>`<th>${f}</th>`).join('')}</tr></thead><tbody>`;
+  LABELS.forEach(l=>{
+    const s=SUMMARY[l], c=COLORS[l];
+    html+=`<tr><td style="font-weight:700;color:${c};border-left:3px solid ${c}">${l}</td><td>${s.count}</td>`;
+    feats.forEach(f=>html+=`<td>${s[f]!==null&&s[f]!==undefined?s[f]:'-'}</td>`);
+    html+='</tr>';
+  });
+  document.getElementById('heatmap-table').innerHTML=html+'</tbody>';
+}
+
+// ── Eval heatmap ──
+const EVAL_DATA = {
+  methods:['KMeans','FCM','FPCM','MFPCM','KMedoids','PCM'],
+  ks:[2,3,4,5,6,7,8,9,10],
+  sil:{
+    'KMeans':[0.3227,0.3249,0.3345,0.3485,0.3297,0.3107,0.3216,0.3170,0.3183],
+    'FCM':[0.3227,0.3043,0.3369,0.3485,0.3273,0.3243,0.2937,0.2610,0.2476],
+    'FPCM':[0.3227,0.3043,0.3260,0.2673,0.3238,0.2574,0.2732,0.2592,0.1593],
+    'MFPCM':[0.3227,0.3043,0.2801,0.2451,0.2839,0.2839,0.3227,0.3227,0.3227],
+    'KMedoids':[0.3054,0.2513,0.3247,0.2598,0.1583,0.2069,0.2713,0.2660,0.2713],
+    'PCM':[0.1309,0.1309,0.1093,-0.0304,0.0583,-0.0246,0.0843,0.0687,0.2244]
+  }
+};
+function drawEvalHeatmap(){
+  const {ctx,W,H}=initCanvas('eval-heatmap-canvas',260);
+  const methods=EVAL_DATA.methods, ks=EVAL_DATA.ks;
+  const padL=72, padT=36, padR=20, padB=28;
+  const cellW=(W-padL-padR)/ks.length, cellH=(H-padT-padB)/methods.length;
+  ctx.fillStyle=MPL_BG;ctx.fillRect(0,0,W,H);
+  methods.forEach((m,i)=>{
+    ks.forEach((k,j)=>{
+      const v=EVAL_DATA.sil[m]?.[j]||0;
+      const t=Math.max(0,Math.min(1,(v+0.1)/0.6));
+      const r=Math.round(13+t*(77-13)),g=Math.round(27+t*(166-27)),b=Math.round(42+t*(255-42));
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      ctx.fillRect(padL+j*cellW,padT+i*cellH,cellW-1,cellH-1);
+      ctx.fillStyle=v>0.3?'white':'#8892a4';
+      ctx.font=`8.5px DM Sans`;ctx.textAlign='center';
+      ctx.fillText(v>-0.1?v.toFixed(3):'',padL+j*cellW+cellW/2,padT+i*cellH+cellH/2+3);
+    });
+    ctx.fillStyle='#8892a4';ctx.font='10px DM Sans';ctx.textAlign='right';
+    ctx.fillText(m,padL-6,padT+i*cellH+cellH/2+3);
+  });
+  ks.forEach((k,j)=>{
+    ctx.fillStyle='#5a6a80';ctx.font='9px DM Sans';ctx.textAlign='center';
+    ctx.fillText('k='+k,padL+j*cellW+cellW/2,padT-8);
+  });
+  // threshold line
+  ctx.strokeStyle='#fc5c65';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  // just label
+  ctx.fillStyle='#fc5c65';ctx.font='8px DM Sans';ctx.textAlign='left';
+  ctx.fillText('≥0.3',W-padR-28,padT+2);
+  ctx.setLineDash([]);
+}
+
+// ── Course bars ──
+let activeCourseCluster = LABELS[0];
+function buildCourseClusterTabs(){
+  const wrap=document.getElementById('course-cluster-tabs');
+  if(!wrap||wrap.children.length) return;
+  LABELS.forEach(l=>{
+    const btn=document.createElement('button');
+    btn.className='tab-btn'+(l===activeCourseCluster?' active':'');
+    btn.style.cssText='border:1px solid var(--border);border-radius:6px;padding:5px 14px';
+    btn.textContent=l;
+    btn.onclick=()=>{
+      activeCourseCluster=l;
+      document.querySelectorAll('#course-cluster-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      drawCourseBar(l);
+    };
+    wrap.appendChild(btn);
+  });
+}
+function drawCourseBar(lbl){
+  const {ctx,W,H}=initCanvas('course-bar-canvas',340);
+  const sub=STUDENTS.filter(s=>s.cluster===lbl);
+  if(!sub.length) return;
+  // aggregate course means
+  const allCourses={};
+  sub.forEach(s=>Object.entries(s.courses).forEach(([k,v])=>{
+    if(!allCourses[k]) allCourses[k]=[]; allCourses[k].push(v);
+  }));
+  let means=Object.entries(allCourses).map(([k,vs])=>([k,vs.reduce((a,v)=>a+v,0)/vs.length]));
+  means.sort((a,b)=>b[1]-a[1]); means=means.slice(0,14);
+  const pad=36, labelW=160, barMax=W-labelW-pad-50;
+  const rowH=Math.max(18,(H-2*pad)/means.length);
+  ctx.fillStyle=MPL_BG;ctx.fillRect(0,0,W,H);
+  const color=COLORS[lbl];
+  means.forEach(([name,val],i)=>{
+    const by=pad+i*rowH, bw=(val/4)*barMax;
+    ctx.fillStyle=color+'33';
+    ctx.fillRect(labelW,by,barMax,rowH-3);
+    ctx.fillStyle=color+'cc';
+    ctx.beginPath();ctx.roundRect(labelW,by,bw,rowH-3,[2]);ctx.fill();
+    ctx.fillStyle='#8E9BAE';ctx.font=`${Math.min(10,rowH-4)}px DM Sans`;ctx.textAlign='right';
+    const short=name.length>22?name.slice(0,22)+'…':name;
+    ctx.fillText(short,labelW-6,by+rowH/2+3);
+    ctx.fillStyle='#566A7F';ctx.font=`bold ${Math.min(10,rowH-4)}px DM Sans`;ctx.textAlign='left';
+    ctx.fillText(val.toFixed(2),labelW+bw+6,by+rowH/2+3);
+  });
+  ctx.fillStyle='var(--blue)';ctx.font='bold 11px DM Sans';ctx.textAlign='center';
+  ctx.fillText(`Rata-Rata Nilai — Cluster ${lbl}`,W/2,pad-14);
+}
+
+// ── Advice ──
+(function buildAdvice(){
+  const TIPS={
+    'Sangat Tinggi':{icon:'🏆',c:'#28C76F',tips:['Proyek riset & kompetisi nasional/internasional.','Fast-track S2 atau beasiswa.','Libatkan sebagai tutor sebaya.']},
+    'Tinggi':{icon:'⭐',c:'#00CFE8',tips:['Materi pengayaan & sertifikasi profesional.','Dorong partisipasi seminar.','Rekomendasikan program magang industri.']},
+    'Sedang':{icon:'📘',c:'#7367F0',tips:['Bimbingan rutin setiap 2 minggu.','Sumber belajar tambahan.','Fokus perbaikan mata kuliah lemah.']},
+    'Cukup':{icon:'⚠️',c:'#FF9F43',tips:['Konseling akademik 1×/bulan.','Program remedial terstruktur.','Manfaatkan kehadiran baik untuk keaktifan.']},
+    'Rendah':{icon:'🚨',c:'#EA5455',tips:['Intervensi segera & monitoring mingguan.','Koordinasi dengan orang tua/wali.','Evaluasi beban SKS sesuai kemampuan.']},
+  };
+  const wrap=document.getElementById('advice-grid');
+  LABELS.forEach(l=>{
+    const a=TIPS[l]||{icon:'📋',c:'#8E9BAE',tips:[]}, n=STUDENTS.filter(s=>s.cluster===l).length;
+    const sub=STUDENTS.filter(s=>s.cluster===l);
+    const avgIPS=(sub.reduce((s,st)=>s+st.ips,0)/sub.length).toFixed(3);
+    wrap.innerHTML+=`<div class="advice-card" style="background:${a.c}12;border-color:${a.c}44">
+      <h4 style="color:${a.c}">${a.icon} ${l} <span style="font-weight:300;font-size:.78rem">(n=${n}, IPK=${avgIPS})</span></h4>
+      <ul>${a.tips.map(t=>`<li>${t}</li>`).join('')}</ul>
+    </div>`;
+  });
+})();
+
+// ── Radar summary ──
+function drawRadar(){
+  const {ctx,W,H}=initCanvas('summary-radar',350);
+  const metrics=['IPS Kum','IPS S1','IPS S2','IPS S3','IPS S4','Absensi'];
+  const n=metrics.length, angles=metrics.map((_,i)=>i*2*Math.PI/n-Math.PI/2);
+  const cx=W/2, cy=H/2, maxR=Math.min(W,H)/2-50;
+  ctx.fillStyle=MPL_BG;ctx.fillRect(0,0,W,H);
+  // Grid
+  [0.25,0.5,0.75,1].forEach(t=>{
+    ctx.strokeStyle='#F0F0F0';ctx.lineWidth=1;ctx.beginPath();
+    angles.forEach((a,i)=>{const r=maxR*t;const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.closePath();ctx.stroke();
+  });
+  angles.forEach(a=>{ctx.strokeStyle='#F0F0F0';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+maxR*Math.cos(a),cy+maxR*Math.sin(a));ctx.stroke();});
+  metrics.forEach((m,i)=>{
+    const a=angles[i], x=cx+(maxR+20)*Math.cos(a), y=cy+(maxR+20)*Math.sin(a);
+    ctx.fillStyle='#8E9BAE';ctx.font='9px DM Sans';ctx.textAlign='center';ctx.fillText(m,x,y+3);
+  });
+  LABELS.forEach(l=>{
+    const sub=STUDENTS.filter(s=>s.cluster===l);
+    if(!sub.length)return;
+    const avg=(key)=>sub.reduce((a,s)=>a+(s.ips_sem?.[key]||s.ips),0)/sub.length;
+    const vals=[
+      (sub.reduce((a,s)=>a+s.ips,0)/sub.length-2.5)/1.5,
+      (avg('Sem 1')-2.5)/1.5,(avg('Sem 2')-2.5)/1.5,
+      (avg('Sem 3')-2.5)/1.5,(avg('Sem 4')-2.5)/1.5,
+      (sub.reduce((a,s)=>a+(s.absensi||99),0)/sub.length-95)/5,
+    ].map(v=>Math.max(0,Math.min(1,v)));
+    ctx.strokeStyle=COLORS[l];ctx.lineWidth=2;ctx.fillStyle=COLORS[l]+'22';
+    ctx.beginPath();
+    angles.forEach((a,i)=>{const r=maxR*vals[i];const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.closePath();ctx.stroke();ctx.fill();
+  });
+  // Legend
+  let lx=cx-LABELS.length*55;
+  LABELS.forEach(l=>{
+    ctx.fillStyle=COLORS[l];ctx.beginPath();ctx.arc(lx,H-16,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#8E9BAE';ctx.font='9px DM Sans';ctx.textAlign='left';ctx.fillText(l,lx+9,H-12);
+    lx+=Math.max(60,l.length*8);
+  });
+}
+
+// ── Student list ──
+(function buildStudentFilter(){
+  const sel=document.getElementById('stu-filter');
+  LABELS.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;sel.appendChild(o);});
+})();
+function renderStudents(){
+  const q=document.getElementById('stu-search').value.toLowerCase();
+  const f=document.getElementById('stu-filter').value;
+  let list=STUDENTS;
+  if(f!=='Semua') list=list.filter(s=>s.cluster===f);
+  if(q) list=list.filter(s=>s.name.toLowerCase().includes(q)||String(s.id).includes(q));
+  document.getElementById('stu-count').textContent=`Menampilkan ${list.length} mahasiswa`;
+  const wrap=document.getElementById('stu-grid'); wrap.innerHTML='';
+  list.forEach(s=>{
+    const c=COLORS[s.cluster]||'#888';
+    const card=document.createElement('div');
+    card.className='stu-card';
+    card.style.borderTopColor=c;
+    card.innerHTML=`<div class="stu-name">${s.name}</div>
+      <div class="stu-nrp">${s.id} · ${s.angkatan}</div>
+      <div class="stu-meta">
+        <span style="background:${c}22;color:${c};padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700">${s.cluster}</span>
+        <span style="font-size:.78rem;color:var(--muted)">IPK <b style="color:var(--text)">${s.ips.toFixed(3)}</b></span>
+      </div>`;
+    card.onclick=()=>openModal(s);
+    wrap.appendChild(card);
+  });
+  if(!list.length) wrap.innerHTML='<p style="color:var(--muted);padding:20px">Tidak ada data.</p>';
+}
+
+// ── Modal ──
+function openModal(s){
+  const c=COLORS[s.cluster]||'#888';
+  const courseRows=Object.entries(s.courses||{})
+    .sort((a,b)=>a[1]-b[1])
+    .map(([n,v])=>{
+      const cls=v>=3.5?'grade-A':v>=3?'grade-B':v>=2.5?'grade-C':'grade-D';
+      return `<tr><td>${n}</td><td class="course-grade ${cls}">${v}</td></tr>`;
+    }).join('');
+  const semRows=Object.entries(s.ips_sem||{}).map(([k,v])=>`<tr><td>${k}</td><td class="grade-B">${v}</td></tr>`).join('');
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-name">${s.name}</div>
+    <span class="cl-badge" style="background:${c}">${s.cluster}</span>
+    <div class="modal-grid">
+      <div class="modal-item"><div class="mi-lbl">NRP</div><div class="mi-val" style="font-family:var(--mono)">${s.id}</div></div>
+      <div class="modal-item"><div class="mi-lbl">Angkatan</div><div class="mi-val">${s.angkatan}</div></div>
+      <div class="modal-item"><div class="mi-lbl">Jenis Kelamin</div><div class="mi-val">${s.jk}</div></div>
+      <div class="modal-item"><div class="mi-lbl">Asal</div><div class="mi-val" style="font-size:.85rem">${s.asal}</div></div>
+      <div class="modal-item" style="background:${c}18;border:1px solid ${c}44">
+        <div class="mi-lbl">IPK Kumulatif</div>
+        <div class="mi-val" style="color:${c};font-size:1.5rem">${s.ips.toFixed(3)}</div>
+      </div>
+      ${s.absensi!==null?`<div class="modal-item"><div class="mi-lbl">Absensi Rata-Rata</div><div class="mi-val">${s.absensi?.toFixed(1)}%</div></div>`:''}
+    </div>
+    ${semRows?`<p style="font-size:.82rem;font-weight:600;color:var(--blue);margin:12px 0 8px">IPS per Semester</p>
+      <table class="course-tbl"><thead><tr><th>Semester</th><th>IPS</th></tr></thead><tbody>${semRows}</tbody></table>`:''}
+    ${courseRows?`<p style="font-size:.82rem;font-weight:600;color:var(--blue);margin:14px 0 8px">Nilai Mata Kuliah</p>
+      <table class="course-tbl"><thead><tr><th>Mata Kuliah</th><th>Nilai</th></tr></thead><tbody>${courseRows}</tbody></table>`:''}
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('active');}
+document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{drawBar();drawIpsBar();},80);
+  renderStudents();
+});
+window.addEventListener('resize',()=>setTimeout(()=>{drawBar();drawIpsBar();},100));
+</script>
+</body>
+</html>

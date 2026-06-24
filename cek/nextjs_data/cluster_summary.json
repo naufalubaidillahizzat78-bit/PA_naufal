@@ -1,0 +1,47 @@
+{
+  "Sangat Tinggi": {
+    "count": 6,
+    "avg_ips": 3.52,
+    "avg_absensi": 99.41,
+    "IPS Sem 1": 3.877,
+    "IPS Sem 2": 3.847,
+    "IPS Sem 3": 3.837,
+    "IPS Sem 4": 3.827
+  },
+  "Tinggi": {
+    "count": 5,
+    "avg_ips": 3.556,
+    "avg_absensi": 97.69,
+    "IPS Sem 1": 3.808,
+    "IPS Sem 2": 3.766,
+    "IPS Sem 3": 3.864,
+    "IPS Sem 4": 3.768
+  },
+  "Sedang": {
+    "count": 4,
+    "avg_ips": 3.453,
+    "avg_absensi": 99.8,
+    "IPS Sem 1": 3.815,
+    "IPS Sem 2": 3.78,
+    "IPS Sem 3": 3.903,
+    "IPS Sem 4": 3.795
+  },
+  "Cukup": {
+    "count": 7,
+    "avg_ips": 3.127,
+    "avg_absensi": 99.8,
+    "IPS Sem 1": 3.633,
+    "IPS Sem 2": 3.601,
+    "IPS Sem 3": 3.643,
+    "IPS Sem 4": 3.6
+  },
+  "Rendah": {
+    "count": 6,
+    "avg_ips": 3.132,
+    "avg_absensi": 98.42,
+    "IPS Sem 1": 3.443,
+    "IPS Sem 2": 3.49,
+    "IPS Sem 3": 3.473,
+    "IPS Sem 4": 3.478
+  }
+}

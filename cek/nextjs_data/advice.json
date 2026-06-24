@@ -1,0 +1,32 @@
+{
+  "Sangat Tinggi": {
+    "icon": "🏆",
+    "tips": [
+      "Proyek riset & kompetisi nasional/internasional."
+    ]
+  },
+  "Tinggi": {
+    "icon": "⭐",
+    "tips": [
+      "Akses materi pengayaan & sertifikasi profesional."
+    ]
+  },
+  "Sedang": {
+    "icon": "📘",
+    "tips": [
+      "Bimbingan rutin setiap 2 minggu."
+    ]
+  },
+  "Cukup": {
+    "icon": "⚠️",
+    "tips": [
+      "Konseling akademik individual 1×/bulan."
+    ]
+  },
+  "Rendah": {
+    "icon": "🚨",
+    "tips": [
+      "Intervensi segera & monitoring kehadiran mingguan."
+    ]
+  }
+}

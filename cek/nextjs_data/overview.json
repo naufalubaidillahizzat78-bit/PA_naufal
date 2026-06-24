@@ -1,0 +1,23 @@
+{
+  "metrics": {
+    "total_mahasiswa": 28,
+    "jumlah_cluster": 5,
+    "rata_rata_ipk": 3.335,
+    "n_comp_princals": 4,
+    "cumulative_variance_princals": 81.27
+  },
+  "clusters": [
+    "Sangat Tinggi",
+    "Tinggi",
+    "Sedang",
+    "Cukup",
+    "Rendah"
+  ],
+  "palette": {
+    "Sangat Tinggi": "#4da6ff",
+    "Tinggi": "#43e97b",
+    "Sedang": "#f9ca24",
+    "Cukup": "#fd9644",
+    "Rendah": "#fc5c65"
+  }
+}
