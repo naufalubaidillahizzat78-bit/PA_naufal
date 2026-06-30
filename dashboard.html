@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Clustering Mahasiswa</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; }
+  header { background: linear-gradient(135deg,#1e3a5f,#2980b9); color: white; padding: 20px 30px; }
+  header h1 { font-size: 1.6rem; }
+  header p { opacity: 0.85; font-size: 0.9rem; margin-top: 4px; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: white; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .stat-card .val { font-size: 2rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.78rem; color: #718096; margin-top: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media(max-width:900px){ .grid2 { grid-template-columns: 1fr; } }
+  .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  .card h2 { font-size: 1rem; font-weight: 700; color: #2c3e50; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #edf2f7; }
+  canvas { width: 100% !important; }
+  #bubble-canvas { cursor: crosshair; }
+  .tooltip { position: fixed; background: #1a202c; color: white; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; pointer-events: none; display: none; z-index: 1000; max-width: 220px; line-height: 1.5; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; background: #f7fafc; padding: 4px 10px; border-radius: 20px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; z-index: 2000; align-items: center; justify-content: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: white; border-radius: 14px; padding: 28px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+  .modal-close { position: absolute; top: 14px; right: 18px; font-size: 1.4rem; cursor: pointer; color: #718096; background: none; border: none; }
+  .modal h3 { font-size: 1.2rem; color: #2c3e50; margin-bottom: 4px; }
+  .modal .cluster-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; color: white; font-size: 0.82rem; font-weight: 600; margin-bottom: 14px; }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .modal-item { background: #f7fafc; padding: 10px; border-radius: 8px; }
+  .modal-item .mi-lbl { font-size: 0.73rem; color: #718096; }
+  .modal-item .mi-val { font-size: 1rem; font-weight: 700; color: #2c3e50; }
+  .course-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .course-table th { background: #edf2f7; padding: 6px 10px; text-align: left; font-weight: 600; }
+  .course-table td { padding: 5px 10px; border-bottom: 1px solid #edf2f7; }
+  .course-grade { font-weight: 700; }
+  .grade-A { color: #27ae60; } .grade-B { color: #2980b9; } .grade-C { color: #f39c12; } .grade-D { color: #e74c3c; }
+  /* Heatmap */
+  .heatmap-wrap { overflow-x: auto; }
+  table.heatmap { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+  table.heatmap th { background: #2c3e50; color: white; padding: 8px 12px; text-align: center; white-space: nowrap; }
+  table.heatmap td { padding: 8px 12px; text-align: center; border: 1px solid #edf2f7; }
+  table.heatmap tr:hover td { background: rgba(41,128,185,.08); }
+  /* Advice */
+  .advice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 14px; }
+  .advice-card { border-radius: 10px; padding: 16px; border-left: 5px solid; }
+  .advice-card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
+  .advice-card ul { padding-left: 16px; font-size: 0.82rem; line-height: 1.7; color: #4a5568; }
+  .tab-bar { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab-btn { padding: 7px 18px; border-radius: 20px; border: none; cursor: pointer; font-size: 0.83rem; font-weight: 600; background: #edf2f7; color: #4a5568; transition: all .2s; }
+  .tab-btn.active { background: #2980b9; color: white; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 Dashboard Clustering Akademik Mahasiswa</h1>
+  <p>Analisis berbasis PRINCALS + Clustering &nbsp;|&nbsp; Klik titik pada bubble chart untuk melihat profil mahasiswa</p>
+</header>
+
+<div class="container">
+  <!-- Stat cards -->
+  <div class="stats-row" id="stat-cards"></div>
+
+  <!-- Bubble + Heatmap -->
+  <div class="grid2">
+    <div class="card">
+      <h2>🫧 Bubble Chart Cluster (PC1 vs PC2)</h2>
+      <canvas id="bubble-canvas" height="360"></canvas>
+      <div class="legend" id="bubble-legend"></div>
+    </div>
+    <div class="card">
+      <h2>🌡️ Heatmap Profil Cluster</h2>
+      <div class="heatmap-wrap"><table class="heatmap" id="heatmap-table"></table></div>
+    </div>
+  </div>
+
+  <!-- Evaluation chart -->
+  <div class="card" style="margin-bottom:20px">
+    <h2>📈 Distribusi Mahasiswa per Cluster</h2>
+    <canvas id="bar-canvas" height="160"></canvas>
+  </div>
+
+  <!-- Advice -->
+  <div class="card" style="margin-bottom:20px">
+    <h2>💡 Rekomendasi untuk Dosen</h2>
+    <div class="advice-grid" id="advice-grid"></div>
+  </div>
+
+  <!-- Student list -->
+  <div class="card">
+    <h2>👥 Daftar Mahasiswa</h2>
+    <div class="tab-bar" id="tab-bar"></div>
+    <input type="text" id="search-input" placeholder="🔍 Cari nama atau NRP..." 
+           style="width:100%;padding:9px 14px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;font-size:0.87rem;">
+    <div id="student-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;"></div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const STUDENTS = [{"id": 3322600001, "name": "Rike Anindhita", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Batam", "cluster": "Sedang", "ips": 3.36, "absensi": 100.0, "pc1": 1.0782992932719997, "pc2": 2.0572968742842535, "bubble_size": 40.32, "courses": {"Aljabar Linier": 3.06, "Statistika Dasar": 3.92, "Pemrograman 1": 2.54, "Logika dan Algoritma": 3.33, "Basis Data": 3.68, "Matematika 1": 3.19, "Agama": 2.89, "Praktikum Statistika Dasar": 3.77, "Praktikum Pemrograman 1": 3.14, "Praktikum Basis Data": 3.48, "Pemodelan Statistik Terapan": 3.12, "Pemrograman 2": 3.45, "Kecerdasan Buatan": 2.98, "Pemrosesan Data": 3.67, "Manajemen Data": 3.21, "Matematika 2": 2.76, "Kewarganegaraan": 3.89, "Praktikum Pemodelan Statistik Terapan": 3.34, "Praktikum Pemrograman 2": 2.55, "Praktikum Kecerdasan Buatan": 3.71, "Praktikum Pemrosesan Data": 3.08, "Praktikum Manajemen Data": 3.92, "Matematika 3": 3.12, "Analisa Statistika Terapan": 3.45, "Pemrograman 3": 2.98, "Mesin Pembelajaran": 3.67, "Text Mining": 3.21, "Eksplorasi dan Visualisasi Data": 2.75, "Pancasila": 3.89, "Praktikum Analisa Statistika Terapan": 3.04, "Praktikum Pemrograman 3": 3.56, "Praktikum Mesin Pembelajaran": 2.84, "Praktikum Text Mining": 3.33, "Praktikum Eksplorasi dan Visualisasi Data": 3.71, "Data Mining": 3.21, "Teknologi Web Service": 2.87, "Machine Learning Ops": 3.45, "Infrastruktur dan Manajemen Big Data": 3.12, "Data Warehouse": 3.78, "Praktikum Data Mining": 2.94, "Praktikum Teknologi Web Service": 3.66, "Praktikum Machine Learning Ops": 3.01, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 2.76, "Teknologi dan Tool Big Data": 3.42, "Neuro Computing": 2.95, "Workshop Analitika Data Terapan": 3.18, "Workshop Analisis Sosial Media": 3.67, "Ekonometrika Terapan": 2.74, "Teknik Presentasi Data": 3.89, "Technopreneur Sains Data": 3.05, "Bahasa Inggris Teknik": 2.61, "Bahasa Indonesia": 3.54, "Praktikum Neuro Computing": 3.21}}, {"id": 3322600002, "name": "Ida Ayu Made 'Ilmi", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Surabaya", "cluster": "Cukup", "ips": 3.19, "absensi": 100.0, "pc1": -1.5942393467020328, "pc2": 1.3409598362867161, "bubble_size": 38.28, "courses": {"Aljabar Linier": 3.71, "Statistika Dasar": 2.67, "Pemrograman 1": 3.54, "Logika dan Algoritma": 3.25, "Basis Data": 3.88, "Matematika 1": 3.42, "Agama": 2.95, "Praktikum Statistika Dasar": 3.09, "Praktikum Pemrograman 1": 3.63, "Praktikum Basis Data": 3.31, "Pemodelan Statistik Terapan": 2.84, "Pemrograman 2": 3.56, "Kecerdasan Buatan": 3.11, "Pemrosesan Data": 2.97, "Manajemen Data": 3.74, "Matematika 2": 3.28, "Kewarganegaraan": 2.63, "Praktikum Pemodelan Statistik Terapan": 3.9, "Praktikum Pemrograman 2": 3.15, "Praktikum Kecerdasan Buatan": 2.88, "Praktikum Pemrosesan Data": 3.62, "Praktikum Manajemen Data": 3.47, "Matematika 3": 2.88, "Analisa Statistika Terapan": 3.61, "Pemrograman 3": 3.09, "Mesin Pembelajaran": 2.74, "Text Mining": 3.48, "Eksplorasi dan Visualisasi Data": 3.02, "Pancasila": 3.85, "Praktikum Analisa Statistika Terapan": 2.96, "Praktikum Pemrograman 3": 3.27, "Praktikum Mesin Pembelajaran": 3.69, "Praktikum Text Mining": 2.81, "Praktikum Eksplorasi dan Visualisasi Data": 3.14, "Data Mining": 3.89, "Teknologi Web Service": 3.14, "Machine Learning Ops": 2.95, "Infrastruktur dan Manajemen Big Data": 3.27, "Data Warehouse": 3.62, "Praktikum Data Mining": 3.08, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.33, "Praktikum Data Warehouse": 3.05, "Teknologi dan Tool Big Data": 2.88, "Neuro Computing": 3.76, "Workshop Analitika Data Terapan": 3.09, "Workshop Analisis Sosial Media": 2.57, "Ekonometrika Terapan": 3.44, "Teknik Presentasi Data": 3.91, "Technopreneur Sains Data": 2.69, "Bahasa Inggris Teknik": 3.12, "Bahasa Indonesia": 3.63, "Praktikum Neuro Computing": 2.84}}, {"id": 3322600003, "name": "Arifah Shafyan", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Surabaya", "cluster": "Sedang", "ips": 3.25, "absensi": 100.0, "pc1": 1.9163612814788407, "pc2": 0.4612106401703485, "bubble_size": 39.0, "courses": {"Aljabar Linier": 3.18, "Statistika Dasar": 3.47, "Pemrograman 1": 3.83, "Logika dan Algoritma": 2.79, "Basis Data": 3.56, "Matematika 1": 3.24, "Agama": 2.92, "Praktikum Statistika Dasar": 3.69, "Praktikum Pemrograman 1": 3.07, "Praktikum Basis Data": 3.91, "Pemodelan Statistik Terapan": 3.29, "Pemrograman 2": 2.71, "Kecerdasan Buatan": 3.84, "Pemrosesan Data": 3.06, "Manajemen Data": 2.95, "Matematika 2": 3.58, "Kewarganegaraan": 3.41, "Praktikum Pemodelan Statistik Terapan": 2.67, "Praktikum Pemrograman 2": 3.79, "Praktikum Kecerdasan Buatan": 3.14, "Praktikum Pemrosesan Data": 2.89, "Praktikum Manajemen Data": 3.66, "Matematika 3": 3.54, "Analisa Statistika Terapan": 2.69, "Pemrograman 3": 3.11, "Mesin Pembelajaran": 3.83, "Text Mining": 2.92, "Eksplorasi dan Visualisasi Data": 3.46, "Pancasila": 3.07, "Praktikum Analisa Statistika Terapan": 2.58, "Praktikum Pemrograman 3": 3.72, "Praktikum Mesin Pembelajaran": 3.19, "Praktikum Text Mining": 2.87, "Praktikum Eksplorasi dan Visualisasi Data": 3.95, "Data Mining": 2.98, "Teknologi Web Service": 3.41, "Machine Learning Ops": 3.12, "Infrastruktur dan Manajemen Big Data": 2.76, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.29, "Praktikum Teknologi Web Service": 3.84, "Praktikum Machine Learning Ops": 2.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.05, "Praktikum Data Warehouse": 3.58, "Teknologi dan Tool Big Data": 3.58, "Neuro Computing": 2.73, "Workshop Analitika Data Terapan": 3.86, "Workshop Analisis Sosial Media": 3.27, "Ekonometrika Terapan": 2.95, "Teknik Presentasi Data": 3.49, "Technopreneur Sains Data": 3.14, "Bahasa Inggris Teknik": 3.72, "Bahasa Indonesia": 2.66, "Praktikum Neuro Computing": 3.01}}, {"id": 3322600004, "name": "Puput Ayu Setiawati", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Sidoarjo", "cluster": "Cukup", "ips": 3.08, "absensi": 100.0, "pc1": -0.8170435732869528, "pc2": 2.2776895104281385, "bubble_size": 36.96, "courses": {"Aljabar Linier": 2.58, "Statistika Dasar": 3.34, "Pemrograman 1": 3.11, "Logika dan Algoritma": 3.76, "Basis Data": 3.28, "Matematika 1": 3.93, "Agama": 2.86, "Praktikum Statistika Dasar": 3.52, "Praktikum Pemrograman 1": 3.21, "Praktikum Basis Data": 3.64, "Pemodelan Statistik Terapan": 3.05, "Pemrograman 2": 3.72, "Kecerdasan Buatan": 2.86, "Pemrosesan Data": 3.39, "Manajemen Data": 3.91, "Matematika 2": 2.64, "Kewarganegaraan": 3.27, "Praktikum Pemodelan Statistik Terapan": 3.54, "Praktikum Pemrograman 2": 2.78, "Praktikum Kecerdasan Buatan": 3.88, "Praktikum Pemrosesan Data": 3.12, "Praktikum Manajemen Data": 3.46, "Matematika 3": 2.97, "Analisa Statistika Terapan": 3.22, "Pemrograman 3": 3.68, "Mesin Pembelajaran": 2.84, "Text Mining": 3.51, "Eksplorasi dan Visualisasi Data": 3.09, "Pancasila": 2.73, "Praktikum Analisa Statistika Terapan": 3.9, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.61, "Praktikum Text Mining": 3.44, "Praktikum Eksplorasi dan Visualisasi Data": 3.78, "Data Mining": 3.21, "Teknologi Web Service": 2.87, "Machine Learning Ops": 3.46, "Infrastruktur dan Manajemen Big Data": 3.09, "Data Warehouse": 3.74, "Praktikum Data Mining": 2.95, "Praktikum Teknologi Web Service": 3.62, "Praktikum Machine Learning Ops": 3.18, "Praktikum Infrastruktur dan Manajemen Big Data": 3.88, "Praktikum Data Warehouse": 3.27, "Teknologi dan Tool Big Data": 3.33, "Neuro Computing": 3.81, "Workshop Analitika Data Terapan": 2.59, "Workshop Analisis Sosial Media": 3.06, "Ekonometrika Terapan": 3.64, "Teknik Presentasi Data": 2.77, "Technopreneur Sains Data": 3.28, "Bahasa Inggris Teknik": 3.9, "Bahasa Indonesia": 2.85, "Praktikum Neuro Computing": 3.47}}, {"id": 3322600005, "name": "Salsabila Aurora Octavia", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Gresik", "cluster": "Cukup", "ips": 3.31, "absensi": 100.0, "pc1": -0.7684355559510732, "pc2": 2.2193805785108904, "bubble_size": 39.72, "courses": {"Aljabar Linier": 3.95, "Statistika Dasar": 3.16, "Pemrograman 1": 3.59, "Logika dan Algoritma": 2.97, "Basis Data": 3.43, "Matematika 1": 3.82, "Agama": 2.74, "Praktikum Statistika Dasar": 3.26, "Praktikum Pemrograman 1": 3.67, "Praktikum Basis Data": 3.08, "Pemodelan Statistik Terapan": 2.92, "Pemrograman 2": 3.61, "Kecerdasan Buatan": 3.35, "Pemrosesan Data": 2.83, "Manajemen Data": 3.77, "Matematika 2": 3.09, "Kewarganegaraan": 2.59, "Praktikum Pemodelan Statistik Terapan": 3.94, "Praktikum Pemrograman 2": 3.26, "Praktikum Kecerdasan Buatan": 2.74, "Praktikum Pemrosesan Data": 3.68, "Praktikum Manajemen Data": 3.18, "Matematika 3": 3.26, "Analisa Statistika Terapan": 2.88, "Pemrograman 3": 3.47, "Mesin Pembelajaran": 3.02, "Text Mining": 2.69, "Eksplorasi dan Visualisasi Data": 3.74, "Pancasila": 3.18, "Praktikum Analisa Statistika Terapan": 2.91, "Praktikum Pemrograman 3": 3.56, "Praktikum Mesin Pembelajaran": 3.09, "Praktikum Text Mining": 2.63, "Praktikum Eksplorasi dan Visualisasi Data": 3.88, "Data Mining": 3.56, "Teknologi Web Service": 3.02, "Machine Learning Ops": 2.89, "Infrastruktur dan Manajemen Big Data": 3.41, "Data Warehouse": 3.18, "Praktikum Data Mining": 3.67, "Praktikum Teknologi Web Service": 2.94, "Praktikum Machine Learning Ops": 3.85, "Praktikum Infrastruktur dan Manajemen Big Data": 3.09, "Praktikum Data Warehouse": 3.26, "Teknologi dan Tool Big Data": 2.62, "Neuro Computing": 3.55, "Workshop Analitika Data Terapan": 3.19, "Workshop Analisis Sosial Media": 2.94, "Ekonometrika Terapan": 3.73, "Teknik Presentasi Data": 3.08, "Technopreneur Sains Data": 2.71, "Bahasa Inggris Teknik": 3.41, "Bahasa Indonesia": 3.87, "Praktikum Neuro Computing": 3.02}}, {"id": 3322600006, "name": "Indah Sulistyowati", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Sidoarjo", "cluster": "Cukup", "ips": 3.11, "absensi": 100.0, "pc1": -1.2650540868492552, "pc2": 1.977254996701286, "bubble_size": 37.32, "courses": {"Aljabar Linier": 3.22, "Statistika Dasar": 3.89, "Pemrograman 1": 2.63, "Logika dan Algoritma": 3.48, "Basis Data": 3.13, "Matematika 1": 3.61, "Agama": 2.91, "Praktikum Statistika Dasar": 3.85, "Praktikum Pemrograman 1": 3.36, "Praktikum Basis Data": 3.73, "Pemodelan Statistik Terapan": 3.49, "Pemrograman 2": 2.81, "Kecerdasan Buatan": 3.93, "Pemrosesan Data": 3.16, "Manajemen Data": 2.98, "Matematika 2": 3.57, "Kewarganegaraan": 3.22, "Praktikum Pemodelan Statistik Terapan": 2.66, "Praktikum Pemrograman 2": 3.85, "Praktikum Kecerdasan Buatan": 3.07, "Praktikum Pemrosesan Data": 2.91, "Praktikum Manajemen Data": 3.63, "Matematika 3": 2.74, "Analisa Statistika Terapan": 3.58, "Pemrograman 3": 3.21, "Mesin Pembelajaran": 2.96, "Text Mining": 3.49, "Eksplorasi dan Visualisasi Data": 3.07, "Pancasila": 2.65, "Praktikum Analisa Statistika Terapan": 3.84, "Praktikum Pemrograman 3": 3.12, "Praktikum Mesin Pembelajaran": 2.89, "Praktikum Text Mining": 3.71, "Praktikum Eksplorasi dan Visualisasi Data": 3.05, "Data Mining": 2.78, "Teknologi Web Service": 3.54, "Machine Learning Ops": 3.11, "Infrastruktur dan Manajemen Big Data": 3.73, "Data Warehouse": 2.96, "Praktikum Data Mining": 3.88, "Praktikum Teknologi Web Service": 3.21, "Praktikum Machine Learning Ops": 3.05, "Praktikum Infrastruktur dan Manajemen Big Data": 3.47, "Praktikum Data Warehouse": 3.62, "Teknologi dan Tool Big Data": 3.69, "Neuro Computing": 2.83, "Workshop Analitika Data Terapan": 3.24, "Workshop Analisis Sosial Media": 3.52, "Ekonometrika Terapan": 2.68, "Teknik Presentasi Data": 3.96, "Technopreneur Sains Data": 3.11, "Bahasa Inggris Teknik": 2.75, "Bahasa Indonesia": 3.45, "Praktikum Neuro Computing": 3.17}}, {"id": 3322600008, "name": "Muhammad Fauzil Kazhim Zen", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Jakarta Barat", "cluster": "Rendah", "ips": 2.92, "absensi": 99.22, "pc1": -3.6360098866303323, "pc2": 0.5495209373068728, "bubble_size": 35.04, "courses": {"Aljabar Linier": 3.24, "Statistika Dasar": 3.87, "Pemrograman 1": 2.95, "Logika dan Algoritma": 3.56, "Basis Data": 3.12, "Matematika 1": 3.98, "Agama": 2.74, "Praktikum Statistika Dasar": 3.41, "Praktikum Pemrograman 1": 3.69, "Praktikum Basis Data": 2.88, "Pemodelan Statistik Terapan": 3.14, "Pemrograman 2": 3.76, "Kecerdasan Buatan": 2.87, "Pemrosesan Data": 3.42, "Manajemen Data": 3.96, "Matematika 2": 2.69, "Kewarganegaraan": 3.31, "Praktikum Pemodelan Statistik Terapan": 3.59, "Praktikum Pemrograman 2": 2.75, "Praktikum Kecerdasan Buatan": 3.82, "Praktikum Pemrosesan Data": 3.04, "Praktikum Manajemen Data": 3.51, "Matematika 3": 3.09, "Analisa Statistika Terapan": 2.84, "Pemrograman 3": 3.63, "Mesin Pembelajaran": 3.18, "Text Mining": 2.95, "Eksplorasi dan Visualisasi Data": 3.47, "Pancasila": 3.06, "Praktikum Analisa Statistika Terapan": 2.71, "Praktikum Pemrograman 3": 3.89, "Praktikum Mesin Pembelajaran": 3.24, "Praktikum Text Mining": 2.67, "Praktikum Eksplorasi dan Visualisasi Data": 3.55, "Data Mining": 2.84, "Teknologi Web Service": 3.29, "Machine Learning Ops": 3.67, "Infrastruktur dan Manajemen Big Data": 3.14, "Data Warehouse": 2.95, "Praktikum Data Mining": 3.82, "Praktikum Teknologi Web Service": 3.05, "Praktikum Machine Learning Ops": 3.48, "Praktikum Infrastruktur dan Manajemen Big Data": 3.21, "Praktikum Data Warehouse": 2.76, "Teknologi dan Tool Big Data": 3.04, "Neuro Computing": 3.88, "Workshop Analitika Data Terapan": 2.91, "Workshop Analisis Sosial Media": 3.36, "Ekonometrika Terapan": 3.59, "Teknik Presentasi Data": 2.64, "Technopreneur Sains Data": 3.78, "Bahasa Inggris Teknik": 3.09, "Bahasa Indonesia": 2.82, "Praktikum Neuro Computing": 3.48}}, {"id": 3322600009, "name": "Dicky Syarif Renaldi", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Sangat Tinggi", "ips": 3.67, "absensi": 98.44, "pc1": 1.2627814221971883, "pc2": -0.13962340781865948, "bubble_size": 44.04, "courses": {"Aljabar Linier": 3.77, "Statistika Dasar": 2.63, "Pemrograman 1": 3.45, "Logika dan Algoritma": 3.91, "Basis Data": 3.28, "Matematika 1": 2.84, "Agama": 3.66, "Praktikum Statistika Dasar": 3.05, "Praktikum Pemrograman 1": 3.89, "Praktikum Basis Data": 3.14, "Pemodelan Statistik Terapan": 2.96, "Pemrograman 2": 3.64, "Kecerdasan Buatan": 3.28, "Pemrosesan Data": 2.85, "Manajemen Data": 3.73, "Matematika 2": 3.11, "Kewarganegaraan": 2.61, "Praktikum Pemodelan Statistik Terapan": 3.9, "Praktikum Pemrograman 2": 3.24, "Praktikum Kecerdasan Buatan": 2.79, "Praktikum Pemrosesan Data": 3.67, "Praktikum Manajemen Data": 3.36, "Matematika 3": 2.91, "Analisa Statistika Terapan": 3.34, "Pemrograman 3": 3.02, "Mesin Pembelajaran": 2.66, "Text Mining": 3.57, "Eksplorasi dan Visualisasi Data": 3.19, "Pancasila": 2.84, "Praktikum Analisa Statistika Terapan": 3.88, "Praktikum Pemrograman 3": 3.07, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.41, "Praktikum Eksplorasi dan Visualisasi Data": 3.72, "Data Mining": 3.91, "Teknologi Web Service": 3.34, "Machine Learning Ops": 3.09, "Infrastruktur dan Manajemen Big Data": 3.62, "Data Warehouse": 2.88, "Praktikum Data Mining": 3.54, "Praktikum Teknologi Web Service": 3.17, "Praktikum Machine Learning Ops": 3.75, "Praktikum Infrastruktur dan Manajemen Big Data": 3.26, "Praktikum Data Warehouse": 2.97, "Teknologi dan Tool Big Data": 2.97, "Neuro Computing": 3.66, "Workshop Analitika Data Terapan": 3.22, "Workshop Analisis Sosial Media": 2.58, "Ekonometrika Terapan": 3.84, "Teknik Presentasi Data": 3.15, "Technopreneur Sains Data": 2.79, "Bahasa Inggris Teknik": 3.53, "Bahasa Indonesia": 3.07, "Praktikum Neuro Computing": 3.91}}, {"id": 3322600010, "name": "Muhammad Riski Alde", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Ponorogo", "cluster": "Sangat Tinggi", "ips": 3.56, "absensi": 100.0, "pc1": 2.320661951651501, "pc2": 0.7032331005804139, "bubble_size": 42.72, "courses": {"Aljabar Linier": 2.97, "Statistika Dasar": 3.52, "Pemrograman 1": 3.08, "Logika dan Algoritma": 3.76, "Basis Data": 3.33, "Matematika 1": 2.69, "Agama": 3.94, "Praktikum Statistika Dasar": 3.21, "Praktikum Pemrograman 1": 3.47, "Praktikum Basis Data": 3.85, "Pemodelan Statistik Terapan": 3.08, "Pemrograman 2": 3.71, "Kecerdasan Buatan": 2.94, "Pemrosesan Data": 3.48, "Manajemen Data": 3.87, "Matematika 2": 2.65, "Kewarganegaraan": 3.33, "Praktikum Pemodelan Statistik Terapan": 3.55, "Praktikum Pemrograman 2": 2.82, "Praktikum Kecerdasan Buatan": 3.91, "Praktikum Pemrosesan Data": 3.19, "Praktikum Manajemen Data": 3.44, "Matematika 3": 3.44, "Analisa Statistika Terapan": 2.75, "Pemrograman 3": 3.18, "Mesin Pembelajaran": 3.61, "Text Mining": 2.92, "Eksplorasi dan Visualisasi Data": 3.07, "Pancasila": 3.84, "Praktikum Analisa Statistika Terapan": 2.69, "Praktikum Pemrograman 3": 3.55, "Praktikum Mesin Pembelajaran": 3.11, "Praktikum Text Mining": 2.81, "Praktikum Eksplorasi dan Visualisasi Data": 3.96, "Data Mining": 3.12, "Teknologi Web Service": 3.78, "Machine Learning Ops": 2.94, "Infrastruktur dan Manajemen Big Data": 3.45, "Data Warehouse": 3.09, "Praktikum Data Mining": 3.62, "Praktikum Teknologi Web Service": 2.87, "Praktikum Machine Learning Ops": 3.54, "Praktikum Infrastruktur dan Manajemen Big Data": 3.21, "Praktikum Data Warehouse": 3.88, "Teknologi dan Tool Big Data": 3.26, "Neuro Computing": 2.87, "Workshop Analitika Data Terapan": 3.71, "Workshop Analisis Sosial Media": 3.13, "Ekonometrika Terapan": 2.65, "Teknik Presentasi Data": 3.46, "Technopreneur Sains Data": 3.82, "Bahasa Inggris Teknik": 2.93, "Bahasa Indonesia": 3.04, "Praktikum Neuro Computing": 3.68}}, {"id": 3322600011, "name": "Farrel Manazili Nabhan", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Sampang", "cluster": "Tinggi", "ips": 3.64, "absensi": 96.09, "pc1": 0.522444702497973, "pc2": -2.9929832148254096, "bubble_size": 43.68, "courses": {"Aljabar Linier": 3.11, "Statistika Dasar": 3.68, "Pemrograman 1": 2.58, "Logika dan Algoritma": 3.92, "Basis Data": 3.49, "Matematika 1": 3.26, "Agama": 2.75, "Praktikum Statistika Dasar": 3.83, "Praktikum Pemrograman 1": 3.07, "Praktikum Basis Data": 3.54, "Pemodelan Statistik Terapan": 2.89, "Pemrograman 2": 3.6, "Kecerdasan Buatan": 3.17, "Pemrosesan Data": 2.76, "Manajemen Data": 3.78, "Matematika 2": 3.25, "Kewarganegaraan": 2.68, "Praktikum Pemodelan Statistik Terapan": 3.95, "Praktikum Pemrograman 2": 3.09, "Praktikum Kecerdasan Buatan": 2.84, "Praktikum Pemrosesan Data": 3.69, "Praktikum Manajemen Data": 3.32, "Matematika 3": 2.83, "Analisa Statistika Terapan": 3.59, "Pemrograman 3": 3.06, "Mesin Pembelajaran": 2.91, "Text Mining": 3.28, "Eksplorasi dan Visualisasi Data": 3.74, "Pancasila": 2.67, "Praktikum Analisa Statistika Terapan": 3.86, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.52, "Praktikum Eksplorasi dan Visualisasi Data": 3.08, "Data Mining": 3.05, "Teknologi Web Service": 3.27, "Machine Learning Ops": 2.96, "Infrastruktur dan Manajemen Big Data": 3.73, "Data Warehouse": 3.14, "Praktikum Data Mining": 3.58, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.33, "Praktikum Data Warehouse": 3.01, "Teknologi dan Tool Big Data": 3.57, "Neuro Computing": 3.1, "Workshop Analitika Data Terapan": 2.76, "Workshop Analisis Sosial Media": 3.92, "Ekonometrika Terapan": 3.34, "Teknik Presentasi Data": 2.69, "Technopreneur Sains Data": 3.61, "Bahasa Inggris Teknik": 3.18, "Bahasa Indonesia": 2.88, "Praktikum Neuro Computing": 3.49}}, {"id": 3322600012, "name": "Maulana Ihsan Athallah", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Rendah", "ips": 3.08, "absensi": 97.6, "pc1": -1.9918335766913038, "pc2": -0.9508102647023355, "bubble_size": 36.96, "courses": {"Aljabar Linier": 3.88, "Statistika Dasar": 3.19, "Pemrograman 1": 3.64, "Logika dan Algoritma": 2.91, "Basis Data": 3.42, "Matematika 1": 3.97, "Agama": 2.66, "Praktikum Statistika Dasar": 3.09, "Praktikum Pemrograman 1": 3.71, "Praktikum Basis Data": 3.28, "Pemodelan Statistik Terapan": 3.27, "Pemrograman 2": 2.73, "Kecerdasan Buatan": 3.86, "Pemrosesan Data": 3.12, "Manajemen Data": 2.99, "Matematika 2": 3.52, "Kewarganegaraan": 3.38, "Praktikum Pemodelan Statistik Terapan": 2.62, "Praktikum Pemrograman 2": 3.81, "Praktikum Kecerdasan Buatan": 3.06, "Praktikum Pemrosesan Data": 2.91, "Praktikum Manajemen Data": 3.65, "Matematika 3": 3.21, "Analisa Statistika Terapan": 2.96, "Pemrograman 3": 3.49, "Mesin Pembelajaran": 3.08, "Text Mining": 2.75, "Eksplorasi dan Visualisasi Data": 3.63, "Pancasila": 3.12, "Praktikum Analisa Statistika Terapan": 2.84, "Praktikum Pemrograman 3": 3.91, "Praktikum Mesin Pembelajaran": 3.27, "Praktikum Text Mining": 2.69, "Praktikum Eksplorasi dan Visualisasi Data": 3.56, "Data Mining": 3.67, "Teknologi Web Service": 3.21, "Machine Learning Ops": 3.05, "Infrastruktur dan Manajemen Big Data": 2.89, "Data Warehouse": 3.54, "Praktikum Data Mining": 3.12, "Praktikum Teknologi Web Service": 3.78, "Praktikum Machine Learning Ops": 2.94, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.26, "Teknologi dan Tool Big Data": 2.74, "Neuro Computing": 3.39, "Workshop Analitika Data Terapan": 3.87, "Workshop Analisis Sosial Media": 3.05, "Ekonometrika Terapan": 2.91, "Teknik Presentasi Data": 3.66, "Technopreneur Sains Data": 3.12, "Bahasa Inggris Teknik": 2.83, "Bahasa Indonesia": 3.54, "Praktikum Neuro Computing": 3.21}}, {"id": 3322600013, "name": "Anita Damayanti", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Sidoarjo", "cluster": "Sedang", "ips": 3.64, "absensi": 99.22, "pc1": 2.3526680904598742, "pc2": 1.2207759360111383, "bubble_size": 43.68, "courses": {"Aljabar Linier": 2.83, "Statistika Dasar": 3.46, "Pemrograman 1": 3.14, "Logika dan Algoritma": 3.89, "Basis Data": 3.55, "Matematika 1": 2.72, "Agama": 3.96, "Praktikum Statistika Dasar": 3.31, "Praktikum Pemrograman 1": 3.67, "Praktikum Basis Data": 3.02, "Pemodelan Statistik Terapan": 3.02, "Pemrograman 2": 3.75, "Kecerdasan Buatan": 2.88, "Pemrosesan Data": 3.43, "Manajemen Data": 3.92, "Matematika 2": 2.7, "Kewarganegaraan": 3.3, "Praktikum Pemodelan Statistik Terapan": 3.58, "Praktikum Pemrograman 2": 2.77, "Praktikum Kecerdasan Buatan": 3.89, "Praktikum Pemrosesan Data": 3.15, "Praktikum Manajemen Data": 3.47, "Matematika 3": 2.94, "Analisa Statistika Terapan": 3.17, "Pemrograman 3": 3.68, "Mesin Pembelajaran": 2.83, "Text Mining": 3.51, "Eksplorasi dan Visualisasi Data": 3.06, "Pancasila": 2.71, "Praktikum Analisa Statistika Terapan": 3.85, "Praktikum Pemrograman 3": 3.24, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.39, "Praktikum Eksplorasi dan Visualisasi Data": 3.78, "Data Mining": 3.88, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.62, "Infrastruktur dan Manajemen Big Data": 2.97, "Data Warehouse": 3.45, "Praktikum Data Mining": 3.18, "Praktikum Teknologi Web Service": 2.76, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.34, "Praktikum Data Warehouse": 3.08, "Teknologi dan Tool Big Data": 3.44, "Neuro Computing": 2.68, "Workshop Analitika Data Terapan": 3.08, "Workshop Analisis Sosial Media": 3.79, "Ekonometrika Terapan": 3.25, "Teknik Presentasi Data": 2.95, "Technopreneur Sains Data": 3.63, "Bahasa Inggris Teknik": 3.11, "Bahasa Indonesia": 2.77, "Praktikum Neuro Computing": 3.91}}, {"id": 3322600014, "name": "Ardiansyah Indra Febrianto", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Sangat Tinggi", "ips": 3.25, "absensi": 100.0, "pc1": 0.7417858607650848, "pc2": -0.44627201544362355, "bubble_size": 39.0, "courses": {"Aljabar Linier": 3.59, "Statistika Dasar": 3.24, "Pemrograman 1": 2.61, "Logika dan Algoritma": 3.78, "Basis Data": 3.35, "Matematika 1": 3.91, "Agama": 2.87, "Praktikum Statistika Dasar": 3.48, "Praktikum Pemrograman 1": 3.16, "Praktikum Basis Data": 3.84, "Pemodelan Statistik Terapan": 3.21, "Pemrograman 2": 2.86, "Kecerdasan Buatan": 3.47, "Pemrosesan Data": 3.12, "Manajemen Data": 3.74, "Matematika 2": 2.69, "Kewarganegaraan": 3.58, "Praktikum Pemodelan Statistik Terapan": 3.05, "Praktikum Pemrograman 2": 3.89, "Praktikum Kecerdasan Buatan": 2.94, "Praktikum Pemrosesan Data": 3.36, "Praktikum Manajemen Data": 3.67, "Matematika 3": 3.12, "Analisa Statistika Terapan": 3.45, "Pemrograman 3": 2.98, "Mesin Pembelajaran": 3.67, "Text Mining": 3.21, "Eksplorasi dan Visualisasi Data": 2.75, "Pancasila": 3.89, "Praktikum Analisa Statistika Terapan": 3.04, "Praktikum Pemrograman 3": 3.56, "Praktikum Mesin Pembelajaran": 2.84, "Praktikum Text Mining": 3.33, "Praktikum Eksplorasi dan Visualisasi Data": 3.71, "Data Mining": 2.95, "Teknologi Web Service": 3.41, "Machine Learning Ops": 3.78, "Infrastruktur dan Manajemen Big Data": 3.09, "Data Warehouse": 3.62, "Praktikum Data Mining": 2.84, "Praktikum Teknologi Web Service": 3.54, "Praktikum Machine Learning Ops": 3.21, "Praktikum Infrastruktur dan Manajemen Big Data": 3.88, "Praktikum Data Warehouse": 3.05, "Teknologi dan Tool Big Data": 3.16, "Neuro Computing": 3.58, "Workshop Analitika Data Terapan": 2.84, "Workshop Analisis Sosial Media": 3.42, "Ekonometrika Terapan": 3.07, "Teknik Presentasi Data": 2.61, "Technopreneur Sains Data": 3.89, "Bahasa Inggris Teknik": 3.29, "Bahasa Indonesia": 2.96, "Praktikum Neuro Computing": 3.71}}, {"id": 3322600015, "name": "Najma Akmalina Ni'Ma", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Jombang", "cluster": "Sedang", "ips": 3.56, "absensi": 100.0, "pc1": 2.3319173855374284, "pc2": 1.8477076672467758, "bubble_size": 42.72, "courses": {"Aljabar Linier": 3.06, "Statistika Dasar": 3.72, "Pemrograman 1": 3.29, "Logika dan Algoritma": 2.95, "Basis Data": 3.63, "Matematika 1": 3.88, "Agama": 2.68, "Praktikum Statistika Dasar": 3.51, "Praktikum Pemrograman 1": 3.17, "Praktikum Basis Data": 3.94, "Pemodelan Statistik Terapan": 2.78, "Pemrograman 2": 3.55, "Kecerdasan Buatan": 3.09, "Pemrosesan Data": 2.91, "Manajemen Data": 3.82, "Matematika 2": 3.26, "Kewarganegaraan": 2.64, "Praktikum Pemodelan Statistik Terapan": 3.71, "Praktikum Pemrograman 2": 3.18, "Praktikum Kecerdasan Buatan": 2.87, "Praktikum Pemrosesan Data": 3.49, "Praktikum Manajemen Data": 3.33, "Matematika 3": 2.66, "Analisa Statistika Terapan": 3.18, "Pemrograman 3": 3.92, "Mesin Pembelajaran": 2.57, "Text Mining": 3.4, "Eksplorasi dan Visualisasi Data": 3.05, "Pancasila": 2.91, "Praktikum Analisa Statistika Terapan": 3.76, "Praktikum Pemrograman 3": 2.88, "Praktikum Mesin Pembelajaran": 3.61, "Praktikum Text Mining": 3.09, "Praktikum Eksplorasi dan Visualisasi Data": 2.74, "Data Mining": 3.27, "Teknologi Web Service": 2.96, "Machine Learning Ops": 3.73, "Infrastruktur dan Manajemen Big Data": 3.14, "Data Warehouse": 3.58, "Praktikum Data Mining": 3.01, "Praktikum Teknologi Web Service": 2.89, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.34, "Praktikum Data Warehouse": 3.17, "Teknologi dan Tool Big Data": 2.92, "Neuro Computing": 3.35, "Workshop Analitika Data Terapan": 3.14, "Workshop Analisis Sosial Media": 2.75, "Ekonometrika Terapan": 3.83, "Teknik Presentasi Data": 3.49, "Technopreneur Sains Data": 2.67, "Bahasa Inggris Teknik": 3.06, "Bahasa Indonesia": 3.61, "Praktikum Neuro Computing": 3.28}}, {"id": 3322600016, "name": "Bagas Cahya Fajar Bastian", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Sangat Tinggi", "ips": 3.58, "absensi": 100.0, "pc1": 2.069735661986373, "pc2": -0.085809184989152, "bubble_size": 42.96, "courses": {"Aljabar Linier": 3.81, "Statistika Dasar": 3.08, "Pemrograman 1": 3.57, "Logika dan Algoritma": 2.76, "Basis Data": 3.44, "Matematika 1": 3.93, "Agama": 3.21, "Praktikum Statistika Dasar": 3.65, "Praktikum Pemrograman 1": 2.89, "Praktikum Basis Data": 3.12, "Pemodelan Statistik Terapan": 3.14, "Pemrograman 2": 3.69, "Kecerdasan Buatan": 2.83, "Pemrosesan Data": 3.41, "Manajemen Data": 3.95, "Matematika 2": 2.72, "Kewarganegaraan": 3.27, "Praktikum Pemodelan Statistik Terapan": 3.56, "Praktikum Pemrograman 2": 2.89, "Praktikum Kecerdasan Buatan": 3.77, "Praktikum Pemrosesan Data": 3.06, "Praktikum Manajemen Data": 3.48, "Matematika 3": 3.48, "Analisa Statistika Terapan": 3.02, "Pemrograman 3": 3.85, "Mesin Pembelajaran": 2.96, "Text Mining": 3.27, "Eksplorasi dan Visualisasi Data": 3.69, "Pancasila": 2.81, "Praktikum Analisa Statistika Terapan": 3.14, "Praktikum Pemrograman 3": 3.57, "Praktikum Mesin Pembelajaran": 2.63, "Praktikum Text Mining": 3.91, "Praktikum Eksplorasi dan Visualisasi Data": 3.08, "Data Mining": 3.29, "Teknologi Web Service": 3.05, "Machine Learning Ops": 3.62, "Infrastruktur dan Manajemen Big Data": 2.94, "Data Warehouse": 3.78, "Praktikum Data Mining": 3.12, "Praktikum Teknologi Web Service": 3.45, "Praktikum Machine Learning Ops": 2.87, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 3.21, "Teknologi dan Tool Big Data": 3.73, "Neuro Computing": 2.86, "Workshop Analitika Data Terapan": 3.51, "Workshop Analisis Sosial Media": 3.09, "Ekonometrika Terapan": 2.94, "Teknik Presentasi Data": 3.67, "Technopreneur Sains Data": 3.22, "Bahasa Inggris Teknik": 2.79, "Bahasa Indonesia": 3.88, "Praktikum Neuro Computing": 3.15}}, {"id": 3322600017, "name": "Mutiara Sanny", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Blitar", "cluster": "Tinggi", "ips": 3.89, "absensi": 96.88, "pc1": 2.5356246633240858, "pc2": -2.3032817420771146, "bubble_size": 46.68, "courses": {"Aljabar Linier": 2.54, "Statistika Dasar": 3.36, "Pemrograman 1": 3.92, "Logika dan Algoritma": 3.18, "Basis Data": 3.69, "Matematika 1": 2.97, "Agama": 3.84, "Praktikum Statistika Dasar": 3.41, "Praktikum Pemrograman 1": 3.05, "Praktikum Basis Data": 3.77, "Pemodelan Statistik Terapan": 2.96, "Pemrograman 2": 3.62, "Kecerdasan Buatan": 3.24, "Pemrosesan Data": 2.79, "Manajemen Data": 3.88, "Matematika 2": 3.11, "Kewarganegaraan": 2.67, "Praktikum Pemodelan Statistik Terapan": 3.94, "Praktikum Pemrograman 2": 3.29, "Praktikum Kecerdasan Buatan": 2.85, "Praktikum Pemrosesan Data": 3.53, "Praktikum Manajemen Data": 3.17, "Matematika 3": 2.95, "Analisa Statistika Terapan": 3.44, "Pemrograman 3": 3.16, "Mesin Pembelajaran": 2.72, "Text Mining": 3.54, "Eksplorasi dan Visualisasi Data": 2.69, "Pancasila": 3.11, "Praktikum Analisa Statistika Terapan": 3.83, "Praktikum Pemrograman 3": 2.92, "Praktikum Mesin Pembelajaran": 3.46, "Praktikum Text Mining": 3.07, "Praktikum Eksplorasi dan Visualisasi Data": 2.58, "Data Mining": 3.88, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.26, "Infrastruktur dan Manajemen Big Data": 2.95, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.18, "Praktikum Teknologi Web Service": 2.76, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.34, "Praktikum Data Warehouse": 3.01, "Teknologi dan Tool Big Data": 3.31, "Neuro Computing": 3.82, "Workshop Analitika Data Terapan": 2.69, "Workshop Analisis Sosial Media": 3.47, "Ekonometrika Terapan": 3.18, "Teknik Presentasi Data": 2.91, "Technopreneur Sains Data": 3.64, "Bahasa Inggris Teknik": 3.05, "Bahasa Indonesia": 2.76, "Praktikum Neuro Computing": 3.9}}, {"id": 3322600018, "name": "Erina Nur Miftaqul Jannah", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Ponorogo", "cluster": "Tinggi", "ips": 3.5, "absensi": 98.44, "pc1": 2.25585934051191, "pc2": -3.223754075788009, "bubble_size": 42.0, "courses": {"Aljabar Linier": 3.58, "Statistika Dasar": 2.74, "Pemrograman 1": 3.91, "Logika dan Algoritma": 3.26, "Basis Data": 3.69, "Matematika 1": 2.88, "Agama": 3.47, "Praktikum Statistika Dasar": 3.12, "Praktikum Pemrograman 1": 3.84, "Praktikum Basis Data": 3.05, "Pemodelan Statistik Terapan": 3.45, "Pemrograman 2": 2.74, "Kecerdasan Buatan": 3.91, "Pemrosesan Data": 3.08, "Manajemen Data": 2.98, "Matematika 2": 3.59, "Kewarganegaraan": 3.22, "Praktikum Pemodelan Statistik Terapan": 2.63, "Praktikum Pemrograman 2": 3.84, "Praktikum Kecerdasan Buatan": 3.15, "Praktikum Pemrosesan Data": 2.92, "Praktikum Manajemen Data": 3.66, "Matematika 3": 3.72, "Analisa Statistika Terapan": 3.19, "Pemrograman 3": 2.87, "Mesin Pembelajaran": 3.95, "Text Mining": 3.24, "Eksplorasi dan Visualisasi Data": 2.76, "Pancasila": 3.61, "Praktikum Analisa Statistika Terapan": 3.04, "Praktikum Pemrograman 3": 2.99, "Praktikum Mesin Pembelajaran": 3.38, "Praktikum Text Mining": 3.08, "Praktikum Eksplorasi dan Visualisasi Data": 2.65, "Data Mining": 3.54, "Teknologi Web Service": 2.87, "Machine Learning Ops": 3.21, "Infrastruktur dan Manajemen Big Data": 3.88, "Data Warehouse": 3.05, "Praktikum Data Mining": 3.62, "Praktikum Teknologi Web Service": 3.14, "Praktikum Machine Learning Ops": 2.94, "Praktikum Infrastruktur dan Manajemen Big Data": 3.78, "Praktikum Data Warehouse": 3.29, "Teknologi dan Tool Big Data": 2.85, "Neuro Computing": 3.59, "Workshop Analitika Data Terapan": 3.26, "Workshop Analisis Sosial Media": 2.97, "Ekonometrika Terapan": 3.12, "Teknik Presentasi Data": 3.74, "Technopreneur Sains Data": 2.63, "Bahasa Inggris Teknik": 3.48, "Bahasa Indonesia": 3.07, "Praktikum Neuro Computing": 3.91}}, {"id": 3322600019, "name": "Bayu Kurniawan", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Blitar", "cluster": "Cukup", "ips": 3.31, "absensi": 100.0, "pc1": -1.7598126750276388, "pc2": 1.1416675761364714, "bubble_size": 39.72, "courses": {"Aljabar Linier": 3.17, "Statistika Dasar": 3.62, "Pemrograman 1": 2.59, "Logika dan Algoritma": 3.88, "Basis Data": 3.34, "Matematika 1": 3.71, "Agama": 2.95, "Praktikum Statistika Dasar": 3.49, "Praktikum Pemrograman 1": 3.08, "Praktikum Basis Data": 3.93, "Pemodelan Statistik Terapan": 3.03, "Pemrograman 2": 3.78, "Kecerdasan Buatan": 2.88, "Pemrosesan Data": 3.34, "Manajemen Data": 3.97, "Matematika 2": 2.7, "Kewarganegaraan": 3.4, "Praktikum Pemodelan Statistik Terapan": 3.61, "Praktikum Pemrograman 2": 2.81, "Praktikum Kecerdasan Buatan": 3.86, "Praktikum Pemrosesan Data": 3.12, "Praktikum Manajemen Data": 3.51, "Matematika 3": 2.97, "Analisa Statistika Terapan": 3.22, "Pemrograman 3": 3.68, "Mesin Pembelajaran": 2.84, "Text Mining": 3.51, "Eksplorasi dan Visualisasi Data": 3.09, "Pancasila": 2.73, "Praktikum Analisa Statistika Terapan": 3.9, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.61, "Praktikum Text Mining": 3.44, "Praktikum Eksplorasi dan Visualisasi Data": 3.78, "Data Mining": 3.41, "Teknologi Web Service": 3.09, "Machine Learning Ops": 2.96, "Infrastruktur dan Manajemen Big Data": 3.67, "Data Warehouse": 3.18, "Praktikum Data Mining": 3.45, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.27, "Praktikum Data Warehouse": 3.12, "Teknologi dan Tool Big Data": 3.21, "Neuro Computing": 2.78, "Workshop Analitika Data Terapan": 3.85, "Workshop Analisis Sosial Media": 3.16, "Ekonometrika Terapan": 2.94, "Teknik Presentasi Data": 3.53, "Technopreneur Sains Data": 3.69, "Bahasa Inggris Teknik": 2.81, "Bahasa Indonesia": 3.08, "Praktikum Neuro Computing": 3.42}}, {"id": 3322600020, "name": "Muhammad Yusuf Rajabiyah", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Gresik", "cluster": "Cukup", "ips": 3.08, "absensi": 100.0, "pc1": -1.4896036234665417, "pc2": 2.132959622832739, "bubble_size": 36.96, "courses": {"Aljabar Linier": 2.67, "Statistika Dasar": 3.41, "Pemrograman 1": 3.09, "Logika dan Algoritma": 3.76, "Basis Data": 3.58, "Matematika 1": 2.83, "Agama": 3.94, "Praktikum Statistika Dasar": 3.21, "Praktikum Pemrograman 1": 3.65, "Praktikum Basis Data": 3.14, "Pemodelan Statistik Terapan": 2.93, "Pemrograman 2": 3.65, "Kecerdasan Buatan": 3.19, "Pemrosesan Data": 2.76, "Manajemen Data": 3.83, "Matematika 2": 3.28, "Kewarganegaraan": 2.66, "Praktikum Pemodelan Statistik Terapan": 3.9, "Praktikum Pemrograman 2": 3.07, "Praktikum Kecerdasan Buatan": 2.84, "Praktikum Pemrosesan Data": 3.57, "Praktikum Manajemen Data": 3.31, "Matematika 3": 2.95, "Analisa Statistika Terapan": 3.27, "Pemrograman 3": 3.06, "Mesin Pembelajaran": 2.89, "Text Mining": 3.59, "Eksplorasi dan Visualisasi Data": 3.11, "Pancasila": 2.77, "Praktikum Analisa Statistika Terapan": 3.84, "Praktikum Pemrograman 3": 3.26, "Praktikum Mesin Pembelajaran": 2.88, "Praktikum Text Mining": 3.47, "Praktikum Eksplorasi dan Visualisasi Data": 3.02, "Data Mining": 3.05, "Teknologi Web Service": 3.62, "Machine Learning Ops": 3.21, "Infrastruktur dan Manajemen Big Data": 2.95, "Data Warehouse": 3.78, "Praktikum Data Mining": 3.14, "Praktikum Teknologi Web Service": 3.41, "Praktikum Machine Learning Ops": 2.87, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 3.29, "Teknologi dan Tool Big Data": 3.62, "Neuro Computing": 3.11, "Workshop Analitika Data Terapan": 2.67, "Workshop Analisis Sosial Media": 3.88, "Ekonometrika Terapan": 3.24, "Teknik Presentasi Data": 2.95, "Technopreneur Sains Data": 3.46, "Bahasa Inggris Teknik": 3.19, "Bahasa Indonesia": 2.84, "Praktikum Neuro Computing": 3.71}}, {"id": 3322600021, "name": "Abdul Muffid", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Bojonegoro", "cluster": "Sangat Tinggi", "ips": 3.42, "absensi": 100.0, "pc1": 2.1958522503040845, "pc2": 0.5175650948277986, "bubble_size": 41.04, "courses": {"Aljabar Linier": 3.85, "Statistika Dasar": 3.27, "Pemrograman 1": 3.64, "Logika dan Algoritma": 2.92, "Basis Data": 3.48, "Matematika 1": 3.96, "Agama": 2.75, "Praktikum Statistika Dasar": 3.11, "Praktikum Pemrograman 1": 3.72, "Praktikum Basis Data": 3.39, "Pemodelan Statistik Terapan": 3.26, "Pemrograman 2": 2.71, "Kecerdasan Buatan": 3.88, "Pemrosesan Data": 3.14, "Manajemen Data": 2.95, "Matematika 2": 3.52, "Kewarganegaraan": 3.37, "Praktikum Pemodelan Statistik Terapan": 2.61, "Praktikum Pemrograman 2": 3.79, "Praktikum Kecerdasan Buatan": 3.09, "Praktikum Pemrosesan Data": 2.9, "Praktikum Manajemen Data": 3.64, "Matematika 3": 2.69, "Analisa Statistika Terapan": 3.74, "Pemrograman 3": 3.18, "Mesin Pembelajaran": 2.91, "Text Mining": 3.56, "Eksplorasi dan Visualisasi Data": 3.09, "Pancasila": 2.63, "Praktikum Analisa Statistika Terapan": 3.88, "Praktikum Pemrograman 3": 3.33, "Praktikum Mesin Pembelajaran": 2.75, "Praktikum Text Mining": 3.61, "Praktikum Eksplorasi dan Visualisasi Data": 3.04, "Data Mining": 3.88, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.26, "Infrastruktur dan Manajemen Big Data": 2.96, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.18, "Praktikum Teknologi Web Service": 2.84, "Praktikum Machine Learning Ops": 3.91, "Praktikum Infrastruktur dan Manajemen Big Data": 3.45, "Praktikum Data Warehouse": 3.01, "Teknologi dan Tool Big Data": 2.93, "Neuro Computing": 3.57, "Workshop Analitika Data Terapan": 3.04, "Workshop Analisis Sosial Media": 2.76, "Ekonometrika Terapan": 3.81, "Teknik Presentasi Data": 3.28, "Technopreneur Sains Data": 2.65, "Bahasa Inggris Teknik": 3.49, "Bahasa Indonesia": 3.12, "Praktikum Neuro Computing": 3.9}}, {"id": 3322600022, "name": "Taslim", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Kendari", "cluster": "Rendah", "ips": 3.17, "absensi": 98.8, "pc1": -2.275222764502413, "pc2": -1.989428065001505, "bubble_size": 38.04, "courses": {"Aljabar Linier": 3.06, "Statistika Dasar": 3.89, "Pemrograman 1": 2.54, "Logika dan Algoritma": 3.31, "Basis Data": 3.67, "Matematika 1": 3.24, "Agama": 2.98, "Praktikum Statistika Dasar": 3.83, "Praktikum Pemrograman 1": 3.15, "Praktikum Basis Data": 3.56, "Pemodelan Statistik Terapan": 3.07, "Pemrograman 2": 3.73, "Kecerdasan Buatan": 2.85, "Pemrosesan Data": 3.46, "Manajemen Data": 3.92, "Matematika 2": 2.68, "Kewarganegaraan": 3.33, "Praktikum Pemodelan Statistik Terapan": 3.55, "Praktikum Pemrograman 2": 2.77, "Praktikum Kecerdasan Buatan": 3.81, "Praktikum Pemrosesan Data": 3.18, "Praktikum Manajemen Data": 3.42, "Matematika 3": 2.98, "Analisa Statistika Terapan": 3.42, "Pemrograman 3": 3.16, "Mesin Pembelajaran": 2.81, "Text Mining": 2.74, "Eksplorasi dan Visualisasi Data": 3.58, "Pancasila": 3.21, "Praktikum Analisa Statistika Terapan": 2.96, "Praktikum Pemrograman 3": 3.49, "Praktikum Mesin Pembelajaran": 3.07, "Praktikum Text Mining": 2.65, "Praktikum Eksplorasi dan Visualisasi Data": 3.84, "Data Mining": 3.14, "Teknologi Web Service": 3.67, "Machine Learning Ops": 2.89, "Infrastruktur dan Manajemen Big Data": 3.45, "Data Warehouse": 3.21, "Praktikum Data Mining": 3.78, "Praktikum Teknologi Web Service": 2.94, "Praktikum Machine Learning Ops": 3.56, "Praktikum Infrastruktur dan Manajemen Big Data": 3.09, "Praktikum Data Warehouse": 3.32, "Teknologi dan Tool Big Data": 3.18, "Neuro Computing": 2.74, "Workshop Analitika Data Terapan": 3.56, "Workshop Analisis Sosial Media": 3.91, "Ekonometrika Terapan": 2.62, "Teknik Presentasi Data": 3.07, "Technopreneur Sains Data": 3.44, "Bahasa Inggris Teknik": 2.89, "Bahasa Indonesia": 3.69, "Praktikum Neuro Computing": 3.25}}, {"id": 3322600023, "name": "Johan Winarwan Nawawi", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Ponorogo", "cluster": "Sangat Tinggi", "ips": 3.64, "absensi": 100.0, "pc1": 2.5273658722140224, "pc2": 1.254014233639953, "bubble_size": 43.68, "courses": {"Aljabar Linier": 3.74, "Statistika Dasar": 2.69, "Pemrograman 1": 3.52, "Logika dan Algoritma": 3.18, "Basis Data": 3.91, "Matematika 1": 3.44, "Agama": 2.86, "Praktikum Statistika Dasar": 3.08, "Praktikum Pemrograman 1": 3.63, "Praktikum Basis Data": 3.29, "Pemodelan Statistik Terapan": 2.99, "Pemrograman 2": 3.6, "Kecerdasan Buatan": 3.21, "Pemrosesan Data": 2.82, "Manajemen Data": 3.76, "Matematika 2": 3.16, "Kewarganegaraan": 2.65, "Praktikum Pemodelan Statistik Terapan": 3.93, "Praktikum Pemrograman 2": 3.11, "Praktikum Kecerdasan Buatan": 2.89, "Praktikum Pemrosesan Data": 3.5, "Praktikum Manajemen Data": 3.35, "Matematika 3": 3.12, "Analisa Statistika Terapan": 2.89, "Pemrograman 3": 3.71, "Mesin Pembelajaran": 3.05, "Text Mining": 2.93, "Eksplorasi dan Visualisasi Data": 3.27, "Pancasila": 3.66, "Praktikum Analisa Statistika Terapan": 2.78, "Praktikum Pemrograman 3": 3.44, "Praktikum Mesin Pembelajaran": 3.09, "Praktikum Text Mining": 2.61, "Praktikum Eksplorasi dan Visualisasi Data": 3.92, "Data Mining": 2.97, "Teknologi Web Service": 3.41, "Machine Learning Ops": 3.05, "Infrastruktur dan Manajemen Big Data": 3.62, "Data Warehouse": 3.18, "Praktikum Data Mining": 2.84, "Praktikum Teknologi Web Service": 3.75, "Praktikum Machine Learning Ops": 3.29, "Praktikum Infrastruktur dan Manajemen Big Data": 3.88, "Praktikum Data Warehouse": 3.11, "Teknologi dan Tool Big Data": 2.83, "Neuro Computing": 3.47, "Workshop Analitika Data Terapan": 3.12, "Workshop Analisis Sosial Media": 2.68, "Ekonometrika Terapan": 3.88, "Teknik Presentasi Data": 3.21, "Technopreneur Sains Data": 2.95, "Bahasa Inggris Teknik": 3.54, "Bahasa Indonesia": 3.06, "Praktikum Neuro Computing": 3.72}}, {"id": 3322600024, "name": "Naufal Ubaidillah Izzat", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kabupaten Bangkalan", "cluster": "Rendah", "ips": 3.0, "absensi": 96.09, "pc1": -3.7771612892202096, "pc2": -0.37573242387231137, "bubble_size": 36.0, "courses": {"Aljabar Linier": 3.12, "Statistika Dasar": 3.47, "Pemrograman 1": 3.85, "Logika dan Algoritma": 2.78, "Basis Data": 3.59, "Matematika 1": 3.26, "Agama": 2.93, "Praktikum Statistika Dasar": 3.71, "Praktikum Pemrograman 1": 3.04, "Praktikum Basis Data": 3.92, "Pemodelan Statistik Terapan": 3.18, "Pemrograman 2": 2.75, "Kecerdasan Buatan": 3.85, "Pemrosesan Data": 3.1, "Manajemen Data": 2.97, "Matematika 2": 3.57, "Kewarganegaraan": 3.24, "Praktikum Pemodelan Statistik Terapan": 2.62, "Praktikum Pemrograman 2": 3.9, "Praktikum Kecerdasan Buatan": 3.04, "Praktikum Pemrosesan Data": 2.91, "Praktikum Manajemen Data": 3.68, "Matematika 3": 3.09, "Analisa Statistika Terapan": 2.84, "Pemrograman 3": 3.63, "Mesin Pembelajaran": 3.18, "Text Mining": 2.95, "Eksplorasi dan Visualisasi Data": 3.47, "Pancasila": 3.06, "Praktikum Analisa Statistika Terapan": 2.71, "Praktikum Pemrograman 3": 3.89, "Praktikum Mesin Pembelajaran": 3.24, "Praktikum Text Mining": 2.67, "Praktikum Eksplorasi dan Visualisasi Data": 3.55, "Data Mining": 3.54, "Teknologi Web Service": 3.09, "Machine Learning Ops": 3.26, "Infrastruktur dan Manajemen Big Data": 2.95, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.21, "Praktikum Teknologi Web Service": 3.84, "Praktikum Machine Learning Ops": 2.87, "Praktikum Infrastruktur dan Manajemen Big Data": 3.45, "Praktikum Data Warehouse": 3.12, "Teknologi dan Tool Big Data": 3.59, "Neuro Computing": 2.77, "Workshop Analitika Data Terapan": 3.04, "Workshop Analisis Sosial Media": 3.86, "Ekonometrika Terapan": 3.19, "Teknik Presentasi Data": 2.91, "Technopreneur Sains Data": 3.41, "Bahasa Inggris Teknik": 3.68, "Bahasa Indonesia": 2.64, "Praktikum Neuro Computing": 3.27}}, {"id": 3322600025, "name": "Eky Fernanda Setyawan Putra", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Cukup", "ips": 2.81, "absensi": 100.0, "pc1": -1.5817954779787886, "pc2": 0.5134076115077578, "bubble_size": 33.72, "courses": {"Aljabar Linier": 2.61, "Statistika Dasar": 3.36, "Pemrograman 1": 3.07, "Logika dan Algoritma": 3.84, "Basis Data": 3.28, "Matematika 1": 3.95, "Agama": 2.89, "Praktikum Statistika Dasar": 3.54, "Praktikum Pemrograman 1": 3.19, "Praktikum Basis Data": 3.68, "Pemodelan Statistik Terapan": 3.05, "Pemrograman 2": 3.7, "Kecerdasan Buatan": 2.87, "Pemrosesan Data": 3.43, "Manajemen Data": 3.94, "Matematika 2": 2.73, "Kewarganegaraan": 3.29, "Praktikum Pemodelan Statistik Terapan": 3.63, "Praktikum Pemrograman 2": 2.8, "Praktikum Kecerdasan Buatan": 3.83, "Praktikum Pemrosesan Data": 3.13, "Praktikum Manajemen Data": 3.48, "Matematika 3": 3.11, "Analisa Statistika Terapan": 2.82, "Pemrograman 3": 3.78, "Mesin Pembelajaran": 3.04, "Text Mining": 2.99, "Eksplorasi dan Visualisasi Data": 3.36, "Pancasila": 3.15, "Praktikum Analisa Statistika Terapan": 2.73, "Praktikum Pemrograman 3": 2.91, "Praktikum Mesin Pembelajaran": 3.34, "Praktikum Text Mining": 3.02, "Praktikum Eksplorasi dan Visualisasi Data": 2.66, "Data Mining": 3.88, "Teknologi Web Service": 3.34, "Machine Learning Ops": 2.96, "Infrastruktur dan Manajemen Big Data": 3.17, "Data Warehouse": 3.62, "Praktikum Data Mining": 3.05, "Praktikum Teknologi Web Service": 2.91, "Praktikum Machine Learning Ops": 3.78, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.09, "Teknologi dan Tool Big Data": 3.33, "Neuro Computing": 3.92, "Workshop Analitika Data Terapan": 2.85, "Workshop Analisis Sosial Media": 3.48, "Ekonometrika Terapan": 3.09, "Teknik Presentasi Data": 2.71, "Technopreneur Sains Data": 3.65, "Bahasa Inggris Teknik": 3.14, "Bahasa Indonesia": 2.96, "Praktikum Neuro Computing": 3.81}}, {"id": 3322600026, "name": "Firmanda Wahyunita", "angkatan": 2022, "jk": "Perempuan", "asal": "Kota Surabaya", "cluster": "Tinggi", "ips": 3.08, "absensi": 99.17, "pc1": -0.7303105255647143, "pc2": -2.884425816208523, "bubble_size": 36.96, "courses": {"Aljabar Linier": 3.93, "Statistika Dasar": 3.14, "Pemrograman 1": 3.58, "Logika dan Algoritma": 2.96, "Basis Data": 3.42, "Matematika 1": 3.79, "Agama": 2.73, "Praktikum Statistika Dasar": 3.25, "Praktikum Pemrograman 1": 3.66, "Praktikum Basis Data": 3.09, "Pemodelan Statistik Terapan": 3.12, "Pemrograman 2": 3.48, "Kecerdasan Buatan": 2.79, "Pemrosesan Data": 3.66, "Manajemen Data": 3.21, "Matematika 2": 2.94, "Kewarganegaraan": 3.87, "Praktikum Pemodelan Statistik Terapan": 3.05, "Praktikum Pemrograman 2": 3.54, "Praktikum Kecerdasan Buatan": 2.83, "Praktikum Pemrosesan Data": 3.91, "Praktikum Manajemen Data": 3.27, "Matematika 3": 3.57, "Analisa Statistika Terapan": 3.19, "Pemrograman 3": 2.84, "Mesin Pembelajaran": 3.88, "Text Mining": 3.07, "Eksplorasi dan Visualisasi Data": 2.95, "Pancasila": 3.41, "Praktikum Analisa Statistika Terapan": 3.72, "Praktikum Pemrograman 3": 2.79, "Praktikum Mesin Pembelajaran": 3.26, "Praktikum Text Mining": 3.09, "Praktikum Eksplorasi dan Visualisasi Data": 2.61, "Data Mining": 3.21, "Teknologi Web Service": 2.89, "Machine Learning Ops": 3.54, "Infrastruktur dan Manajemen Big Data": 3.12, "Data Warehouse": 3.78, "Praktikum Data Mining": 3.27, "Praktikum Teknologi Web Service": 2.95, "Praktikum Machine Learning Ops": 3.67, "Praktikum Infrastruktur dan Manajemen Big Data": 3.05, "Praktikum Data Warehouse": 3.41, "Teknologi dan Tool Big Data": 2.79, "Neuro Computing": 3.52, "Workshop Analitika Data Terapan": 3.17, "Workshop Analisis Sosial Media": 2.88, "Ekonometrika Terapan": 3.74, "Teknik Presentasi Data": 3.26, "Technopreneur Sains Data": 2.67, "Bahasa Inggris Teknik": 3.93, "Bahasa Indonesia": 3.08, "Praktikum Neuro Computing": 3.45}}, {"id": 3322600027, "name": "Faza Muhammad Faqihuddien", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Surabaya", "cluster": "Rendah", "ips": 3.56, "absensi": 97.66, "pc1": -1.2465001368561361, "pc2": -2.3259935132898613, "bubble_size": 42.72, "courses": {"Aljabar Linier": 3.21, "Statistika Dasar": 3.88, "Pemrograman 1": 2.57, "Logika dan Algoritma": 3.49, "Basis Data": 3.11, "Matematika 1": 3.65, "Agama": 2.94, "Praktikum Statistika Dasar": 3.82, "Praktikum Pemrograman 1": 3.37, "Praktikum Basis Data": 3.74, "Pemodelan Statistik Terapan": 2.88, "Pemrograman 2": 3.59, "Kecerdasan Buatan": 3.14, "Pemrosesan Data": 2.76, "Manajemen Data": 3.72, "Matematika 2": 3.36, "Kewarganegaraan": 2.69, "Praktikum Pemodelan Statistik Terapan": 3.81, "Praktikum Pemrograman 2": 3.09, "Praktikum Kecerdasan Buatan": 2.97, "Praktikum Pemrosesan Data": 3.45, "Praktikum Manajemen Data": 3.63, "Matematika 3": 3.64, "Analisa Statistika Terapan": 3.12, "Pemrograman 3": 2.87, "Mesin Pembelajaran": 3.9, "Text Mining": 3.44, "Eksplorasi dan Visualisasi Data": 2.75, "Pancasila": 3.18, "Praktikum Analisa Statistika Terapan": 3.61, "Praktikum Pemrograman 3": 2.92, "Praktikum Mesin Pembelajaran": 3.07, "Praktikum Text Mining": 3.84, "Praktikum Eksplorasi dan Visualisasi Data": 2.69, "Data Mining": 3.09, "Teknologi Web Service": 3.62, "Machine Learning Ops": 3.18, "Infrastruktur dan Manajemen Big Data": 2.87, "Data Warehouse": 3.45, "Praktikum Data Mining": 3.78, "Praktikum Teknologi Web Service": 3.26, "Praktikum Machine Learning Ops": 2.94, "Praktikum Infrastruktur dan Manajemen Big Data": 3.54, "Praktikum Data Warehouse": 3.21, "Teknologi dan Tool Big Data": 3.67, "Neuro Computing": 2.94, "Workshop Analitika Data Terapan": 3.21, "Workshop Analisis Sosial Media": 3.49, "Ekonometrika Terapan": 2.83, "Teknik Presentasi Data": 3.89, "Technopreneur Sains Data": 3.06, "Bahasa Inggris Teknik": 2.76, "Bahasa Indonesia": 3.58, "Praktikum Neuro Computing": 3.12}}, {"id": 3322600028, "name": "Calysta Moza Salsabilla", "angkatan": 2022, "jk": "Perempuan", "asal": "Kabupaten Ogan Komering Ilir", "cluster": "Tinggi", "ips": 3.67, "absensi": 98.44, "pc1": 1.5887269944899318, "pc2": -1.0126452695028254, "bubble_size": 44.04, "courses": {"Aljabar Linier": 3.24, "Statistika Dasar": 3.81, "Pemrograman 1": 2.69, "Logika dan Algoritma": 3.57, "Basis Data": 3.12, "Matematika 1": 3.94, "Agama": 2.88, "Praktikum Statistika Dasar": 3.46, "Praktikum Pemrograman 1": 3.09, "Praktikum Basis Data": 3.68, "Pemodelan Statistik Terapan": 3.25, "Pemrograman 2": 2.91, "Kecerdasan Buatan": 3.84, "Pemrosesan Data": 3.18, "Manajemen Data": 2.85, "Matematika 2": 3.52, "Kewarganegaraan": 3.07, "Praktikum Pemodelan Statistik Terapan": 2.74, "Praktikum Pemrograman 2": 3.93, "Praktikum Kecerdasan Buatan": 3.41, "Praktikum Pemrosesan Data": 2.98, "Praktikum Manajemen Data": 3.67, "Matematika 3": 3.55, "Analisa Statistika Terapan": 3.11, "Pemrograman 3": 2.81, "Mesin Pembelajaran": 3.96, "Text Mining": 3.27, "Eksplorasi dan Visualisasi Data": 2.88, "Pancasila": 3.49, "Praktikum Analisa Statistika Terapan": 3.05, "Praktikum Pemrograman 3": 2.63, "Praktikum Mesin Pembelajaran": 3.71, "Praktikum Text Mining": 3.14, "Praktikum Eksplorasi dan Visualisasi Data": 2.97, "Data Mining": 3.75, "Teknologi Web Service": 3.29, "Machine Learning Ops": 3.05, "Infrastruktur dan Manajemen Big Data": 2.96, "Data Warehouse": 3.67, "Praktikum Data Mining": 3.14, "Praktikum Teknologi Web Service": 3.88, "Praktikum Machine Learning Ops": 2.84, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.09, "Teknologi dan Tool Big Data": 3.05, "Neuro Computing": 3.78, "Workshop Analitika Data Terapan": 2.69, "Workshop Analisis Sosial Media": 3.44, "Ekonometrika Terapan": 3.23, "Teknik Presentasi Data": 2.91, "Technopreneur Sains Data": 3.61, "Bahasa Inggris Teknik": 3.18, "Bahasa Indonesia": 2.84, "Praktikum Neuro Computing": 3.9}}, {"id": 3322600029, "name": "Muhammad Rafi Jauhar Pralistio", "angkatan": 2022, "jk": "Laki-laki", "asal": "Kota Madiun", "cluster": "Rendah", "ips": 3.06, "absensi": 99.22, "pc1": -2.767062251962905, "pc2": -1.4838852229522284, "bubble_size": 36.72, "courses": {"Aljabar Linier": 3.75, "Statistika Dasar": 2.61, "Pemrograman 1": 3.38, "Logika dan Algoritma": 3.91, "Basis Data": 3.27, "Matematika 1": 3.59, "Agama": 2.84, "Praktikum Statistika Dasar": 3.14, "Praktikum Pemrograman 1": 3.72, "Praktikum Basis Data": 3.49, "Pemodelan Statistik Terapan": 3.06, "Pemrograman 2": 3.71, "Kecerdasan Buatan": 2.87, "Pemrosesan Data": 3.49, "Manajemen Data": 3.15, "Matematika 2": 2.81, "Kewarganegaraan": 3.88, "Praktikum Pemodelan Statistik Terapan": 3.24, "Praktikum Pemrograman 2": 3.6, "Praktikum Kecerdasan Buatan": 2.95, "Praktikum Pemrosesan Data": 3.92, "Praktikum Manajemen Data": 3.33, "Matematika 3": 2.83, "Analisa Statistika Terapan": 3.59, "Pemrograman 3": 3.06, "Mesin Pembelajaran": 2.91, "Text Mining": 3.28, "Eksplorasi dan Visualisasi Data": 3.74, "Pancasila": 2.67, "Praktikum Analisa Statistika Terapan": 3.86, "Praktikum Pemrograman 3": 3.15, "Praktikum Mesin Pembelajaran": 2.95, "Praktikum Text Mining": 3.52, "Praktikum Eksplorasi dan Visualisasi Data": 3.08, "Data Mining": 2.95, "Teknologi Web Service": 3.54, "Machine Learning Ops": 3.21, "Infrastruktur dan Manajemen Big Data": 3.78, "Data Warehouse": 3.09, "Praktikum Data Mining": 2.89, "Praktikum Teknologi Web Service": 3.62, "Praktikum Machine Learning Ops": 3.27, "Praktikum Infrastruktur dan Manajemen Big Data": 3.41, "Praktikum Data Warehouse": 3.12, "Teknologi dan Tool Big Data": 2.97, "Neuro Computing": 3.36, "Workshop Analitika Data Terapan": 3.71, "Workshop Analisis Sosial Media": 2.65, "Ekonometrika Terapan": 3.08, "Teknik Presentasi Data": 3.54, "Technopreneur Sains Data": 2.79, "Bahasa Inggris Teknik": 3.87, "Bahasa Indonesia": 3.14, "Praktikum Neuro Computing": 3.22}}];
+const SUMMARY  = {"Sangat Tinggi": {"count": 6, "avg_ips": 3.52, "avg_absensi": 99.74, "nilai ips": 3.877, "IPS": 3.847, "IPS.1": 3.837, "IPS.2": 3.827, "Rata-Rata IPS": 3.52, "Rata-Rata Absen Mahasiswa": 99.74}, "Tinggi": {"count": 5, "avg_ips": 3.556, "avg_absensi": 97.8, "nilai ips": 3.808, "IPS": 3.766, "IPS.1": 3.864, "IPS.2": 3.768, "Rata-Rata IPS": 3.556, "Rata-Rata Absen Mahasiswa": 97.804}, "Sedang": {"count": 4, "avg_ips": 3.453, "avg_absensi": 99.81, "nilai ips": 3.815, "IPS": 3.78, "IPS.1": 3.903, "IPS.2": 3.795, "Rata-Rata IPS": 3.453, "Rata-Rata Absen Mahasiswa": 99.805}, "Cukup": {"count": 7, "avg_ips": 3.127, "avg_absensi": 100.0, "nilai ips": 3.633, "IPS": 3.601, "IPS.1": 3.643, "IPS.2": 3.6, "Rata-Rata IPS": 3.127, "Rata-Rata Absen Mahasiswa": 100.0}, "Rendah": {"count": 6, "avg_ips": 3.132, "avg_absensi": 98.1, "nilai ips": 3.443, "IPS": 3.49, "IPS.1": 3.473, "IPS.2": 3.478, "Rata-Rata IPS": 3.132, "Rata-Rata Absen Mahasiswa": 98.098}};
+const COLORS   = {"Sangat Tinggi": "#4e79a7", "Tinggi": "#f28e2b", "Sedang": "#e15759", "Cukup": "#76b7b2", "Rendah": "#59a14f"};
+const ADVICE   = {"Sangat Tinggi": {"icon": "🏆", "color": "#27ae60", "advice": ["Berikan tantangan tambahan: proyek riset, kompetisi, atau KKN di instansi bergengsi.", "Pertimbangkan jalur fast-track atau beasiswa lanjutan studi S2.", "Libatkan sebagai asisten praktikum atau tutor sebaya."]}, "Tinggi": {"icon": "⭐", "color": "#2980b9", "advice": ["Pertahankan momentum; beri akses ke materi pengayaan atau sertifikasi profesional.", "Dorong partisipasi aktif dalam seminar dan konferensi ilmiah.", "Monitoring ringan untuk memastikan tidak ada penurunan performa."]}, "Sedang": {"icon": "📘", "color": "#f39c12", "advice": ["Lakukan bimbingan rutin setiap 2 minggu untuk mengidentifikasi hambatan.", "Rekomendasikan sumber belajar tambahan (modul, video, teman belajar).", "Fokus pada mata kuliah dengan nilai terendah untuk perbaikan terarah."]}, "Cukup": {"icon": "⚠️", "color": "#e67e22", "advice": ["Jadwalkan konseling akademik individual minimal 1x/bulan.", "Identifikasi apakah ada kendala non-akademik (ekonomi, kesehatan, sosial).", "Program remedial terstruktur untuk mata kuliah di bawah standar."]}, "Rendah": {"icon": "🚨", "color": "#e74c3c", "advice": ["Intervensi segera: konseling akademik intensif dan monitoring kehadiran.", "Koordinasi dengan orang tua/wali untuk dukungan di luar kampus.", "Pertimbangkan program bimbingan khusus atau cuti semester jika diperlukan."]}};
+const LABELS   = ["Sangat Tinggi", "Tinggi", "Sedang", "Cukup", "Rendah"];
+const FEAT_COLS = ["nilai ips", "IPS", "IPS.1", "IPS.2", "Rata-Rata IPS", "Rata-Rata Absen Mahasiswa", "ABSENSI RATA RATA", "ABSENSI RATA_RATA"];
+
+// ── Stat cards ──
+function buildStats() {
+  const total = STUDENTS.length;
+  const avgIPS = (STUDENTS.reduce((s,st)=>s+st.ips,0)/total).toFixed(3);
+  const nClusters = LABELS.length;
+  const topCluster = LABELS[0] || '-';
+  const topCount = STUDENTS.filter(s=>s.cluster===topCluster).length;
+
+  const data = [
+    {val: total, lbl: 'Total Mahasiswa', color: '#2980b9'},
+    {val: nClusters, lbl: 'Jumlah Cluster', color: '#27ae60'},
+    {val: avgIPS, lbl: 'Rata-Rata IPS', color: '#e67e22'},
+    {val: topCount, lbl: 'Cluster ' + topCluster, color: COLORS[topCluster] || '#9b59b6'},
+  ];
+  const wrap = document.getElementById('stat-cards');
+  data.forEach(d => {
+    wrap.innerHTML += `<div class="stat-card"><div class="val" style="color:${d.color}">${d.val}</div><div class="lbl">${d.lbl}</div></div>`;
+  });
+}
+
+// ── Bubble Chart (pure canvas) ──
+let bubbleStudents = STUDENTS;
+function drawBubble(filtered) {
+  const canvas = document.getElementById('bubble-canvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight || 360;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = 40;
+  const pts = filtered;
+  if (!pts.length) return;
+
+  const x1 = Math.min(...pts.map(s=>s.pc1))-0.3, x2 = Math.max(...pts.map(s=>s.pc1))+0.3;
+  const y1 = Math.min(...pts.map(s=>s.pc2))-0.3, y2 = Math.max(...pts.map(s=>s.pc2))+0.3;
+  const scX = v => pad + (v-x1)/(x2-x1)*(W-2*pad);
+  const scY = v => H-pad - (v-y1)/(y2-y1)*(H-2*pad);
+
+  // Axes
+  ctx.strokeStyle='#ccc'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,H-pad); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-pad,H-pad); ctx.stroke();
+  ctx.fillStyle='#718096'; ctx.font='11px Segoe UI';
+  ctx.fillText('PC1', W-pad+4, H-pad+4);
+  ctx.fillText('PC2', pad-14, pad-6);
+
+  pts.forEach(s => {
+    const cx = scX(s.pc1), cy = scY(s.pc2);
+    const r = s.bubble_size / 2.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = (COLORS[s.cluster] || '#999') + 'cc';
+    ctx.strokeStyle = (COLORS[s.cluster] || '#999');
+    ctx.lineWidth = 1.5;
+    ctx.fill(); ctx.stroke();
+  });
+
+  // Store for hit-test
+  canvas._pts = pts.map(s => ({...s, cx: scX(s.pc1), cy: scY(s.pc2), r: s.bubble_size/2.5}));
+  canvas._scaleInfo = {W, H, pad, x1, x2, y1, y2, scX, scY, dpr};
+}
+
+function buildBubbleLegend() {
+  const wrap = document.getElementById('bubble-legend');
+  LABELS.forEach(lbl => {
+    wrap.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${COLORS[lbl]||'#999'}"></div>${lbl}</div>`;
+  });
+}
+
+// Bubble hover + click
+(function() {
+  const canvas = document.getElementById('bubble-canvas');
+  const tip = document.getElementById('tooltip');
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return [e.clientX - rect.left, e.clientY - rect.top];
+  }
+  function hitTest(px, py) {
+    if (!canvas._pts) return null;
+    return canvas._pts.find(p => Math.hypot(p.cx-px, p.cy-py) <= p.r + 4);
+  }
+  canvas.addEventListener('mousemove', e => {
+    const [px,py] = getPos(e);
+    const hit = hitTest(px, py);
+    if (hit) {
+      canvas.style.cursor='pointer';
+      tip.style.display='block';
+      tip.style.left=(e.clientX+14)+'px';
+      tip.style.top=(e.clientY-10)+'px';
+      tip.innerHTML = `<b>${hit.name}</b><br>NRP: ${hit.id}<br>IPS: ${hit.ips}<br>Cluster: ${hit.cluster}`;
+    } else {
+      canvas.style.cursor='crosshair';
+      tip.style.display='none';
+    }
+  });
+  canvas.addEventListener('mouseleave', () => { tip.style.display='none'; });
+  canvas.addEventListener('click', e => {
+    const [px,py] = getPos(e);
+    const hit = hitTest(px, py);
+    if (hit) openModal(hit);
+  });
+})();
+
+// ── Heatmap Table ──
+function buildHeatmap() {
+  const feats = Object.keys(Object.values(SUMMARY)[0]).filter(k=>k!=='count');
+  const hdr = ['Cluster','Jumlah',...feats.map(f=>f.replace(/_/g,' ').replace('avg ',''))];
+  let html = '<thead><tr>'+hdr.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>';
+  LABELS.forEach(lbl => {
+    const s = SUMMARY[lbl];
+    const color = COLORS[lbl]||'#999';
+    html += `<tr><td style="font-weight:700;color:${color};border-left:4px solid ${color}">${lbl}</td><td>${s.count}</td>`;
+    feats.forEach(f => {
+      const v = s[f];
+      html += `<td>${v!==null&&v!==undefined?v:'-'}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('heatmap-table').innerHTML = html;
+}
+
+// ── Bar Chart ──
+function buildBar() {
+  const canvas = document.getElementById('bar-canvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight || 160;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+
+  const counts = LABELS.map(lbl => STUDENTS.filter(s=>s.cluster===lbl).length);
+  const max = Math.max(...counts);
+  const pad = 40, bGap = 16;
+  const bW = Math.min(60, (W - 2*pad - bGap*(LABELS.length-1)) / LABELS.length);
+
+  LABELS.forEach((lbl, i) => {
+    const bH = (counts[i]/max) * (H - pad - 30);
+    const bx = pad + i*(bW+bGap);
+    const by = H - pad - bH;
+    ctx.fillStyle = COLORS[lbl]||'#999';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bW, bH, [4,4,0,0]);
+    ctx.fill();
+    ctx.fillStyle='#2d3748'; ctx.font='bold 13px Segoe UI'; ctx.textAlign='center';
+    ctx.fillText(counts[i], bx+bW/2, by-6);
+    ctx.fillStyle='#718096'; ctx.font='10px Segoe UI';
+    ctx.fillText(lbl.length>8?lbl.slice(0,8)+'…':lbl, bx+bW/2, H-pad+14);
+  });
+}
+
+// ── Advice ──
+function buildAdvice() {
+  const wrap = document.getElementById('advice-grid');
+  LABELS.forEach(lbl => {
+    const a = ADVICE[lbl] || {icon:'📋',color:'#999',advice:['Pantau perkembangan mahasiswa.']};
+    const count = STUDENTS.filter(s=>s.cluster===lbl).length;
+    wrap.innerHTML += `
+      <div class="advice-card" style="background:${a.color}18;border-left-color:${a.color}">
+        <h4 style="color:${a.color}">${a.icon} ${lbl} <span style="font-weight:400;font-size:.8rem">(n=${count})</span></h4>
+        <ul>${a.advice.map(x=>`<li>${x}</li>`).join('')}</ul>
+      </div>`;
+  });
+}
+
+// ── Student list ──
+let activeTab = 'Semua';
+function buildTabs() {
+  const wrap = document.getElementById('tab-bar');
+  ['Semua', ...LABELS].forEach(lbl => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (lbl === activeTab ? ' active' : '');
+    btn.textContent = lbl;
+    btn.onclick = () => {
+      activeTab = lbl;
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderStudents();
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+function renderStudents() {
+  const query = document.getElementById('search-input').value.toLowerCase();
+  let filtered = STUDENTS;
+  if (activeTab !== 'Semua') filtered = filtered.filter(s=>s.cluster===activeTab);
+  if (query) filtered = filtered.filter(s=>s.name.toLowerCase().includes(query)||String(s.id).includes(query));
+
+  const wrap = document.getElementById('student-list');
+  wrap.innerHTML = '';
+  filtered.forEach(s => {
+    const color = COLORS[s.cluster]||'#999';
+    const card = document.createElement('div');
+    card.style.cssText=`background:white;border-radius:10px;padding:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.07);border-top:3px solid ${color};transition:transform .15s`;
+    card.onmouseenter=()=>card.style.transform='translateY(-3px)';
+    card.onmouseleave=()=>card.style.transform='none';
+    card.innerHTML=`
+      <div style="font-weight:700;font-size:.92rem">${s.name}</div>
+      <div style="font-size:.78rem;color:#718096">NRP: ${s.id} · ${s.angkatan}</div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <span style="background:${color}22;color:${color};padding:2px 10px;border-radius:20px;font-size:.75rem;font-weight:700">${s.cluster}</span>
+        <span style="font-size:.8rem;color:#4a5568">IPS: <b>${s.ips.toFixed(3)}</b></span>
+      </div>`;
+    card.onclick=()=>openModal(s);
+    wrap.appendChild(card);
+  });
+  if (!filtered.length) wrap.innerHTML='<p style="color:#718096;padding:20px">Tidak ada data.</p>';
+
+  // Redraw bubble with filtered
+  const bubFilter = activeTab==='Semua' ? STUDENTS : STUDENTS.filter(s=>s.cluster===activeTab);
+  drawBubble(bubFilter.filter(s => !query || s.name.toLowerCase().includes(query)||String(s.id).includes(query)));
+}
+
+document.getElementById('search-input').addEventListener('input', renderStudents);
+
+// ── Modal ──
+function openModal(s) {
+  const color = COLORS[s.cluster]||'#999';
+  const courseRows = Object.entries(s.courses||{}).map(([name,val]) => {
+    const cls = val>=3.5?'grade-A':val>=3?'grade-B':val>=2.5?'grade-C':'grade-D';
+    return `<tr><td>${name}</td><td class="course-grade ${cls}">${val}</td></tr>`;
+  }).join('');
+  document.getElementById('modal-body').innerHTML = `
+    <h3>${s.name}</h3>
+    <span class="cluster-badge" style="background:${color}">${s.cluster}</span>
+    <div class="modal-grid">
+      <div class="modal-item"><div class="mi-lbl">NRP</div><div class="mi-val">${s.id}</div></div>
+      <div class="modal-item"><div class="mi-lbl">Angkatan</div><div class="mi-val">${s.angkatan}</div></div>
+      <div class="modal-item"><div class="mi-lbl">Jenis Kelamin</div><div class="mi-val">${s.jk}</div></div>
+      <div class="modal-item"><div class="mi-lbl">Asal</div><div class="mi-val">${s.asal}</div></div>
+      <div class="modal-item" style="background:${color}18;border:1px solid ${color}44">
+        <div class="mi-lbl">Rata-Rata IPS</div>
+        <div class="mi-val" style="color:${color};font-size:1.4rem">${s.ips.toFixed(3)}</div>
+      </div>
+      ${s.absensi!==null?`<div class="modal-item"><div class="mi-lbl">Rata-Rata Absensi</div><div class="mi-val">${s.absensi?.toFixed(1)}%</div></div>`:''}</div>
+    ${courseRows?`<h4 style="margin:14px 0 8px;font-size:.9rem">Nilai Mata Kuliah</h4><table class="course-table"><thead><tr><th>Mata Kuliah</th><th>Nilai</th></tr></thead><tbody>${courseRows}</tbody></table>`:''}
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded', () => {
+  buildStats();
+  setTimeout(()=>{ drawBubble(STUDENTS); buildBubbleLegend(); }, 100);
+  setTimeout(buildBar, 100);
+  buildHeatmap();
+  buildAdvice();
+  buildTabs();
+  renderStudents();
+});
+window.addEventListener('resize', () => {
+  setTimeout(()=>{ drawBubble(STUDENTS); buildBar(); }, 100);
+});
+</script>
+</body>
+</html>
