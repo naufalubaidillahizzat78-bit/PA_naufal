@@ -135,34 +135,34 @@ def run_princals(X_scaled, feature_cols, target_variance=0.80):
     plt.close()
     print("[PRINCALS] Scree plot saved -> output/princals_scree.png")
 
-    # ── Biplot PC1 vs PC2 ──
-    if len(eigenvalues) >= 2:
-        fig, ax = plt.subplots(figsize=(9, 7))
-        ax.scatter(df_object_scores_selected['PC1'], df_object_scores_selected['PC2'],
-                   alpha=0.7, s=80, color='#7367F0', edgecolors='white', linewidth=0.5)
-        # Loading arrows
-        scale = 3.5
-        # Plot only top 15 features with highest loading magnitude in PC1 or PC2 to avoid clutter
-        loading_mags = np.sqrt(loadings_selected['PC1']**2 + loadings_selected['PC2']**2)
-        top_loadings_idx = loading_mags.nlargest(15).index
-        
-        for feat in feature_cols:
-            x_loading = loadings_selected.loc[feat, 'PC1'] * scale
-            y_loading = loadings_selected.loc[feat, 'PC2'] * scale
-            if feat in top_loadings_idx:
-                ax.annotate('', xy=(x_loading, y_loading), xytext=(0, 0),
-                            arrowprops=dict(arrowstyle='->', color='#EA5455', lw=1.5))
-                ax.text(x_loading * 1.1, y_loading * 1.1, feat, fontsize=7, color='#EA5455', fontweight='bold')
-            
-        ax.axhline(0, color='gray', linewidth=0.5, linestyle=':')
-        ax.axvline(0, color='gray', linewidth=0.5, linestyle=':')
-        ax.set_xlabel(f'PC1 ({explained_variance_ratio[0]*100:.1f}%)')
-        ax.set_ylabel(f'PC2 ({explained_variance_ratio[1]*100:.1f}%)')
-        ax.set_title('Biplot PRINCALS - PC1 vs PC2', fontweight='bold', color='#7367F0')
-        plt.tight_layout()
-        plt.savefig('output/princals_biplot.png', dpi=150, bbox_inches='tight')
-        plt.close()
-        print("[PRINCALS] Biplot saved -> output/princals_biplot.png")
+    # ── Biplot PC1 vs PC2 ── (Commented out per user request)
+    # if len(eigenvalues) >= 2:
+    #     fig, ax = plt.subplots(figsize=(9, 7))
+    #     ax.scatter(df_object_scores_selected['PC1'], df_object_scores_selected['PC2'],
+    #                alpha=0.7, s=80, color='#7367F0', edgecolors='white', linewidth=0.5)
+    #     # Loading arrows
+    #     scale = 3.5
+    #     # Plot only top 15 features with highest loading magnitude in PC1 or PC2 to avoid clutter
+    #     loading_mags = np.sqrt(loadings_selected['PC1']**2 + loadings_selected['PC2']**2)
+    #     top_loadings_idx = loading_mags.nlargest(15).index
+    #     
+    #     for feat in feature_cols:
+    #         x_loading = loadings_selected.loc[feat, 'PC1'] * scale
+    #         y_loading = loadings_selected.loc[feat, 'PC2'] * scale
+    #         if feat in top_loadings_idx:
+    #             ax.annotate('', xy=(x_loading, y_loading), xytext=(0, 0),
+    #                         arrowprops=dict(arrowstyle='->', color='#EA5455', lw=1.5))
+    #             ax.text(x_loading * 1.1, y_loading * 1.1, feat, fontsize=7, color='#EA5455', fontweight='bold')
+    #         
+    #     ax.axhline(0, color='gray', linewidth=0.5, linestyle=':')
+    #     ax.axvline(0, color='gray', linewidth=0.5, linestyle=':')
+    #     ax.set_xlabel(f'PC1 ({explained_variance_ratio[0]*100:.1f}%)')
+    #     ax.set_ylabel(f'PC2 ({explained_variance_ratio[1]*100:.1f}%)')
+    #     ax.set_title('Biplot PRINCALS - PC1 vs PC2', fontweight='bold', color='#7367F0')
+    #     plt.tight_layout()
+    #     plt.savefig('output/princals_biplot.png', dpi=150, bbox_inches='tight')
+    #     plt.close()
+    #     print("[PRINCALS] Biplot saved -> output/princals_biplot.png")
 
     # Save to Excel: hasil_principals.xlsx (exactly 8 sheets)
     # Prep dataframes
