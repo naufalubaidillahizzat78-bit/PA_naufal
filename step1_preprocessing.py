@@ -16,14 +16,43 @@ import pickle
 warnings.filterwarnings('ignore')
 
 def load_and_clean(filepath):
-    # Read Excel with two header rows (merged cells handle)
-    df = pd.read_excel(filepath, header=[0, 1])
-    
-    # Flatten MultiIndex columns
-    df.columns = [f'{c0} - {c1}' if not (pd.isna(c1) or 'Unnamed' in str(c1)) else c0 for c0, c1 in df.columns]
-    df.columns = [c.strip() for c in df.columns]
-    
-    print(f"[1] Data loaded: {df.shape[0]} rows, {df.shape[1]} cols")
+    """
+    Baca Excel — deteksi otomatis format header:
+      * Multi-index (2 baris header) : data_base2.xlsx
+      * Flat (1 baris header)        : data_sintetis_*.xlsx
+    Strategi: baca baris ke-1 (index 1) dengan openpyxl.
+      Jika semua nilai numerik/None → flat.
+      Jika ada string (nama matkul/kategori) → multi-index.
+    """
+    import openpyxl
+    wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
+    ws = wb.active
+    row0_vals, row1_vals = [], []
+    for i, row in enumerate(ws.iter_rows(min_row=1, max_row=2, values_only=True)):
+        if i == 0: row0_vals = list(row)
+        if i == 1: row1_vals = list(row)
+    wb.close()
+
+    # Hitung sel string di baris ke-1 yang BUKAN milik kolom identitas biasa
+    str_in_row1 = sum(
+        1 for v in row1_vals
+        if isinstance(v, str) and str(v).strip() not in ('', 'nan', 'None')
+           and not str(v).strip().startswith('24')   # bukan NRP
+    )
+    is_multiindex = str_in_row1 > 3
+
+    if is_multiindex:
+        df = pd.read_excel(filepath, header=[0, 1])
+        df.columns = [
+            f'{c0} - {c1}' if not (pd.isna(c1) or 'Unnamed' in str(c1)) else c0
+            for c0, c1 in df.columns
+        ]
+    else:
+        df = pd.read_excel(filepath, header=0)
+
+    df.columns = [str(c).strip() for c in df.columns]
+    fmt = 'Multi-index' if is_multiindex else 'Flat'
+    print(f"[1] Data loaded: {df.shape[0]} rows, {df.shape[1]} cols  [{fmt}]")
 
     # Clean text columns
     for col in df.select_dtypes(include='object').columns:
@@ -134,6 +163,71 @@ def categorize_and_encode(df):
 
     return df, feature_cols, groups, encoding_map
 
+def bin_for_princals(df, feature_cols):
+    """
+    TAHAP 1 — Binning sesuai panduan prompt:
+    Konversi setiap variabel kontinu ke skala ORDINAL 1-4 sebelum PRINCALS.
+    PRINCALS bekerja optimal pada data ordinal karena menerapkan optimal scaling.
+
+    Skema binning:
+      - Kuisioner (1.00-4.00) : [<2.75=1, 2.75-3.25=2, 3.25-3.65=3, >=3.65=4]
+      - Nilai matkul (56-99)  : [<65=1,   65-74=2,      75-84=3,     >=85=4  ]
+      - IPS (2.00-4.00)       : [<2.75=1, 2.75-3.25=2, 3.25-3.75=3, >=3.75=4]
+      - Absensi (85-100%)     : [<90=1,   90-95=2,      95-99=3,     >=99=4  ]
+    """
+    X_bin = df[feature_cols].copy().astype(float)
+
+    for col in feature_cols:
+        col_lo = col.lower()
+
+        # --- Kuisioner ---
+        if any(k in col_lo for k in ['kuisioner', 'kuisoner', 'kinerja']):
+            X_bin[col] = pd.cut(
+                X_bin[col],
+                bins=[-np.inf, 2.75, 3.25, 3.65, np.inf],
+                labels=[1, 2, 3, 4]
+            ).astype(float)
+
+        # --- IPS ---
+        elif 'ips' in col_lo:
+            X_bin[col] = pd.cut(
+                X_bin[col],
+                bins=[-np.inf, 2.75, 3.25, 3.75, np.inf],
+                labels=[1, 2, 3, 4]
+            ).astype(float)
+
+        # --- Absensi ---
+        elif 'absen' in col_lo:
+            X_bin[col] = pd.cut(
+                X_bin[col],
+                bins=[-np.inf, 90.0, 95.0, 99.0, np.inf],
+                labels=[1, 2, 3, 4]
+            ).astype(float)
+
+        # --- Nilai Matkul (integer 56-99) ---
+        else:
+            X_bin[col] = pd.cut(
+                X_bin[col],
+                bins=[-np.inf, 64.9, 74.9, 84.9, np.inf],
+                labels=[1, 2, 3, 4]
+            ).astype(float)
+
+    # Isi NaN sisa binning dengan median
+    X_bin = X_bin.fillna(X_bin.median())
+
+    # Statistik binning
+    kuis_c  = [c for c in feature_cols if any(k in c.lower() for k in ['kuisioner','kuisoner','kinerja'])]
+    ips_c   = [c for c in feature_cols if 'ips' in c.lower()]
+    absen_c = [c for c in feature_cols if 'absen' in c.lower()]
+    nilai_c = [c for c in feature_cols if c not in kuis_c + ips_c + absen_c]
+    print(f"[Bin] Binned {len(feature_cols)} kolom -> ordinal 1-4:")
+    print(f"      Kuisioner : {len(kuis_c):>3} kolom  | bins: <2.75 / 2.75-3.25 / 3.25-3.65 / >=3.65")
+    print(f"      Nilai     : {len(nilai_c):>3} kolom  | bins: <65 / 65-74 / 75-84 / >=85")
+    print(f"      IPS       : {len(ips_c):>3} kolom  | bins: <2.75 / 2.75-3.25 / 3.25-3.75 / >=3.75")
+    print(f"      Absensi   : {len(absen_c):>3} kolom  | bins: <90 / 90-95 / 95-99 / >=99")
+    return X_bin
+
+
 def normalize_standard(df, feature_cols):
     scaler = StandardScaler()
     X = df[feature_cols].copy()
@@ -141,21 +235,27 @@ def normalize_standard(df, feature_cols):
     print(f"[5] Normalization (StandardScaler) done. Shape: {X_scaled.shape}")
     return X_scaled, scaler
 
-def run_preprocessing(filepath=r'C:\Users\NITRO\Downloads\data_paa\test_akhir\cek2\data_base2.xlsx'):
+def run_preprocessing(filepath=r'C:\Users\NITRO\Downloads\data_paa\test_akhir\APLIKASI_DASHBOARD_TA_FIX\data_base2.xlsx'):
     df = load_and_clean(filepath)
     df, feature_cols, groups, enc_map = categorize_and_encode(df)
     X_scaled, scaler = normalize_standard(df, feature_cols)
 
+    # BINNING untuk PRINCALS (ordinal 1-4)
+    X_binned = bin_for_princals(df, feature_cols)
+
     # Save outputs
     df.to_pickle('output/df_cleaned.pkl')
     X_scaled.to_pickle('output/X_scaled.pkl')
+    X_binned.to_pickle('output/X_binned.pkl')   # <-- untuk PRINCALS
     pd.Series(feature_cols).to_pickle('output/feature_cols.pkl')
-    
-    # Save encoder map
+
     with open('output/encoding_map.pkl', 'wb') as f:
         pickle.dump(enc_map, f)
 
-    print("\n[OK] Step 1 Preprocessing complete -> output/df_cleaned.pkl, output/X_scaled.pkl")
+    print("\n[OK] Step 1 Preprocessing complete")
+    print("     -> output/df_cleaned.pkl")
+    print("     -> output/X_scaled.pkl  (continuous, untuk EDA)")
+    print("     -> output/X_binned.pkl  (ordinal 1-4, untuk PRINCALS)")
     return df, X_scaled, feature_cols, scaler
 
 if __name__ == '__main__':
