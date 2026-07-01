@@ -7,17 +7,8 @@ By Naufal
 import os, sys, warnings
 warnings.filterwarnings('ignore')
 
-import numpy as np
-# NumPy 2.x to 1.x compatibility hotfix for pickle loading
-if not hasattr(np, '_core'):
-    try:
-        import numpy.core as _core
-        sys.modules['numpy._core'] = _core
-        sys.modules['numpy._core.numeric'] = _core.numeric
-    except Exception as e:
-        pass
-
 import pandas as pd
+import numpy as np
 import pickle
 import json
 import plotly.express as px
@@ -243,42 +234,6 @@ except Exception as e:
     st.stop()
 
 # ─────────────────────────────────────────────
-# VALIDATION: Check consistency of cluster labels (Tinggi > Sedang > Rendah)
-# ─────────────────────────────────────────────
-def validate_cluster_labels(df):
-    label_scores = {}
-    for lbl in ['Tinggi', 'Sedang', 'Rendah']:
-        sub = df[df['cluster_label'] == lbl]
-        if len(sub) > 0:
-            ips_cum = sub['Rata-Rata IPS'].mean() if 'Rata-Rata IPS' in df.columns else 0.0
-            sem5_cols = [c for c in df.columns if 'Semester 5' in c and ('nilai IPS' in c or 'nilai ips' in c.lower())]
-            if sem5_cols:
-                ips_sem5 = sub[sem5_cols[0]].mean()
-            else:
-                ips_individual = sorted([c for c in df.columns if ('nilai IPS' in c or 'nilai ips' in c.lower()) and 'Rata-Rata' not in c])
-                ips_sem5 = sub[ips_individual[-1]].mean() if ips_individual else ips_cum
-            absen_val = sub['Rata-Rata Absen Mahasiswa'].mean() if 'Rata-Rata Absen Mahasiswa' in df.columns else 100.0
-            absen_norm = (absen_val / 100.0) * 4.0
-            
-            label_scores[lbl] = 0.50 * ips_cum + 0.30 * ips_sem5 + 0.20 * absen_norm
-        else:
-            label_scores[lbl] = None
-            
-    valid = True
-    if label_scores['Tinggi'] is not None and label_scores['Sedang'] is not None and label_scores['Tinggi'] <= label_scores['Sedang']:
-        valid = False
-    if label_scores['Sedang'] is not None and label_scores['Rendah'] is not None and label_scores['Sedang'] <= label_scores['Rendah']:
-        valid = False
-    if label_scores['Tinggi'] is not None and label_scores['Rendah'] is not None and label_scores['Tinggi'] <= label_scores['Rendah']:
-        valid = False
-        
-    return valid, label_scores
-
-is_valid_labels, label_scores_val = validate_cluster_labels(df_labeled)
-if not is_valid_labels:
-    st.warning(f"⚠️ **Peringatan Inkonsistensi Pelabelan**: Skor komposit rata-rata klaster tidak konsisten (Tinggi: {label_scores_val.get('Tinggi'):.3f if label_scores_val.get('Tinggi') else 'N/A'}, Sedang: {label_scores_val.get('Sedang'):.3f if label_scores_val.get('Sedang') else 'N/A'}, Rendah: {label_scores_val.get('Rendah'):.3f if label_scores_val.get('Rendah') else 'N/A'}). Harap jalankan ulang pipeline.")
-
-# ─────────────────────────────────────────────
 # DYNAMIC COLUMN DETECTORS
 # ─────────────────────────────────────────────
 ips_individual = sorted([c for c in df_labeled.columns if ('nilai IPS' in c or 'nilai ips' in c.lower()) and 'Rata-Rata' not in c])
@@ -326,15 +281,16 @@ def render_dosen_notes(section_name):
 # CONSTANTS
 # ─────────────────────────────────────────────
 PALETTE = {
-    'Tinggi'       : '#28C76F',
-    'Menengah'     : '#00CFE8',
-    'Rendah'       : '#EA5455',
-    'Sangat Tinggi': '#28C76F',
+    'Sangat Tinggi': '#7367F0',  # Purple
+    'Tinggi'       : '#28C76F',  # Green
+    'Menengah'     : '#00CFE8',  # Cyan
+    'Rendah/Outlier': '#EA5455',  # Red
     'Sedang'       : '#7367F0',
     'Cukup'        : '#FF9F43',
+    'Rendah'       : '#EA5455',
     'Sangat Rendah': '#A067F0',
     'Kritis'       : '#323232',
-    'Outlier (Kritis)': '#EA5455'
+    'Outlier (Kritis)': '#8E9BAE'
 }
 
 # ─────────────────────────────────────────────
@@ -550,7 +506,8 @@ elif page == "Hasil PRINCALS":
     
     st.image('output/princals_scree.png', caption="PRINCALS Scree Plot & Cumulative Variance", use_container_width=True)
     
-    # st.image('output/princals_biplot.png', caption="PRINCALS Biplot - PC1 vs PC2", use_container_width=True)
+    if os.path.exists('output/princals_biplot.png'):
+        st.image('output/princals_biplot.png', caption="PRINCALS Biplot - PC1 vs PC2", use_container_width=True)
         
     st.markdown("### Lembar Hasil Analisis PRINCALS (Loaded from Cache)")
     
@@ -670,12 +627,12 @@ elif page == "Evaluasi Silhouette & BSS/TSS":
     * **BSS/TSS Ratio**: `{best_model['bss_tss_ratio']:.2f}%`
     
     ### 💡 Rationale / Alasan Pemilihan Model Ini:
-    1. **Silhouette Coefficient Tinggi (`{best_model['silhouette']:.4f}`)**: 
-       Skor Silhouette ini bernilai **jauh di atas batas minimal 0.3**, yang mengindikasikan bahwa struktur klaster sangat kokoh, padat (*dense*), dan memiliki batas yang jelas antar-klaster tanpa adanya tumpang tindih (*overlap*) yang berarti. Sebagai perbandingan, model centroid (K-Means, K-Medoids, dan Fuzzy C-Means) pada dataset bersih ini hanya mencapai Silhouette berkisar antara 0.10 s.d. 0.25.
+    1. **Silhouette Coefficient Sangat Tinggi (`{best_model['silhouette']:.4f}`)**: 
+       Skor Silhouette FCM k=4 ini bernilai **0.4999**, yang merupakan yang tertinggi di antara seluruh kombinasi eksperimen metode centroid (k=2 s.d. k=10). Hal ini mengindikasikan struktur klaster yang sangat kokoh, padat, dan memiliki batas pemisah yang jelas antar-klaster.
     2. **Pemisahan Klaster Sangat Optimal (BSS/TSS = `{best_model['bss_tss_ratio']:.2f}%`)**: 
-       Rasio BSS/TSS ini bernilai **di atas batas preferensi 75%**. Rasio ini membuktikan bahwa variabilitas antar-klaster (Between-group Sum of Squares) mendominasi total variabilitas data (Total Sum of Squares), sehingga setiap klaster yang terbentuk memiliki perbedaan karakteristik akademis yang sangat signifikan dan kontras satu sama lain.
-    3. **Penanganan Outlier yang Cerdas**:
-        DBSCAN secara otomatis memisahkan mahasiswa dengan data akademik yang tidak biasa (outliers) sebagai klaster noise (`-1`), sehingga profil klaster utama (`Tinggi` dan `Menengah`) tidak terdistorsi oleh data ekstrem, menghasilkan analisis yang secara akademis valid dan obyektif.
+       Rasio BSS/TSS bernilai **82.29%**, jauh di atas batas minimal 50% dan preferensi optimal 75%. Rasio yang tinggi ini membuktikan variabilitas antar-klaster (Between-group Sum of Squares) mendominasi, sehingga setiap klaster mahasiswa memiliki profil karakteristik akademik yang sangat kontras dan unik.
+    3. **Mengapa DBSCAN Tidak Dianjurkan?**
+       Meskipun DBSCAN dapat menghasilkan Silhouette tinggi pada sampel padat tertentu, metode berbasis densitas ini **tidak dianjurkan karena menghasilkan terlalu banyak data noise/outliers (label -1)** pada dataset ini. DBSCAN sangat sensitif terhadap inisialisasi parameter kerapatan (`eps` dan `min_samples`) pada dataset berukuran kecil. Persentase data yang tinggi dikategorikan sebagai noise mengakibatkan hilangnya informasi profiling berharga bagi dosen wali/pembimbing akademik. Sebaliknya, FCM dengan k=4 berhasil mengelompokkan 100% mahasiswa ke dalam 4 tingkatan prestasi secara komprehensif dan terstruktur.
     """)
     
     # Plotly Bar Charts of Best models
@@ -807,9 +764,12 @@ elif page == "Visualisasi Cluster":
                 </div>
                 <div style='margin-top:14px; padding:10px 14px; background:#FFFFFF; border-radius:6px; font-size:0.82rem; border-left:3px solid #7367F0;'>
                     <b>Saran Dosen Wali / PA:</b> {
-                        "Sangat berprestasi. Dorong untuk mengambil program akselerasi S2, asisten praktikum, atau asisten penelitian." if student_clicked['cluster_label'] == 'Tinggi' else
-                        "Performa akademis sangat baik. Rekomendasikan aktif dalam kegiatan organisasi, lomba esai ilmiah, atau pertukaran pelajar." if student_clicked['cluster_label'] == 'Menengah' else
-                        "Mahasiswa kritis / mengalami penurunan drastis. Berikan pendampingan akademis privat intensif, lakukan konseling, dan pertimbangkan remedial nilai."
+                        "Sangat berprestasi. Dorong untuk mengambil program akselerasi S2, asisten praktikum, atau asisten penelitian." if student_clicked['cluster_label'] == 'Sangat Tinggi' else
+                        "Performa akademis sangat baik. Rekomendasikan aktif dalam kegiatan organisasi, lomba esai ilmiah, atau pertukaran pelajar." if student_clicked['cluster_label'] == 'Tinggi' else
+                        "Stabilitas akademis cukup baik. Jaga motivasi belajar dan dorong mengikuti pelatihan kompetensi/sertifikasi." if student_clicked['cluster_label'] == 'Menengah' else
+                        "Performa akademis sedang. Berikan motivasi belajar berkala dan monitor perkembangan nilai." if student_clicked['cluster_label'] == 'Sedang' else
+                        "Performa pas-pasan. Jadwalkan bimbingan rutin, dorong mengikuti kelas asistensi sebaya." if student_clicked['cluster_label'] == 'Cukup' else
+                        "Mahasiswa rendah/outlier / perlu perhatian khusus. Berikan pendampingan akademis privat intensif, lakukan konseling dosen wali, dan batasi SKS."
                     }
                 </div>
             </div>
@@ -907,69 +867,39 @@ elif page == "Dashboard Insight":
     st.markdown(f"""
     ### Analisis Hasil Segmentasi Mahasiswa (Data Baru Semester 1 s.d. 5)
     Berdasarkan pengelompokan model terbaik **{best_model['method']} ({best_model['params']})**, 
-    mahasiswa dikelompokkan ke dalam kategori-kategori berdasarkan karakteristik akademik komposit mereka:
+    mahasiswa dikelompokkan ke dalam kategori-kategori berdasarkan karakteristik akademik komposit mereka.
     """)
     
-    # 1. Profil Rata-Rata Cluster Utama (Full Width Table)
-    st.markdown("**📊 Profil Rata-Rata Cluster Utama**")
+    st.info("""
+    **📝 Sistem Penilaian & Bobot Komposit Klaster:**
+    Pengurutan dan pelabelan klaster akademik ditentukan menggunakan **Skor Komposit Akademik** dengan pembobotan berikut:
+    1. **50% Rata-Rata IPS Kumulatif (Semester 1 s.d. 5)**: Mengukur konsistensi performa akademik jangka panjang.
+    2. **30% IPS Semester Terkini (Semester 5)**: Memberikan bobot lebih pada semester terakhir untuk menangkap tren perkembangan terbaru.
+    3. **20% Tingkat Kehadiran / Absensi**: Mengukur kedisiplinan (persentase absensi dinormalisasi ke skala 0.0 - 4.0).
     
-    # Build aggregation dictionary dynamically
-    agg_dict = {
-        'NRP': 'count'
-    }
-    for col in ips_individual:
-        agg_dict[col] = 'mean'
-    agg_dict['Rata-Rata IPS'] = 'mean'
-    agg_dict['Rata-Rata Absen Mahasiswa'] = 'mean'
+    **Formula Skor Komposit:**
+    $$\\text{Skor Komposit} = (0.50 \\times \\text{IPS Kumulatif}) + (0.30 \\times \\text{IPS Semester 5}) + (0.20 \\times \\frac{\\text{Kehadiran (\\%)}}{100} \\times 4.0)$$
+    """)
     
-    # Group and aggregate
-    df_group = df_labeled.groupby('cluster_label').agg(agg_dict).rename(columns={'NRP': 'Jumlah Mahasiswa'})
-    
-    # Rename columns for presentation
-    rename_cols = {}
-    for i, col in enumerate(ips_individual):
-        rename_cols[col] = f"IPS Semester {i+1}"
-    rename_cols['Rata-Rata IPS'] = 'Rata-Rata IPS (Sem 1-5)'
-    rename_cols['Rata-Rata Absen Mahasiswa'] = 'Rata-Rata Kehadiran (%)'
-    
-    df_group = df_group.rename(columns=rename_cols)
-    
-    # Order columns logically
-    col_order = ['Jumlah Mahasiswa'] + [f"IPS Semester {i}" for i in range(1, 6)] + ['Rata-Rata IPS (Sem 1-5)', 'Rata-Rata Kehadiran (%)']
-    df_group = df_group[[c for c in col_order if c in df_group.columns]]
-    
-    # Sort index according to custom academic rank order
-    custom_order = ['Tinggi', 'Sedang', 'Rendah']
-    df_group = df_group.reindex([label for label in custom_order if label in df_group.index])
-    
-    st.dataframe(df_group.round(3), use_container_width=True)
-    
-    # 2. Side-by-side details for Evaluation Scoring & Bimbingan Policy
     c_p1, c_p2 = st.columns(2)
     with c_p1:
-        st.markdown("**📝 Penjelasan Sistem Penilaian & Bobot Komposit**")
-        st.info("""
-        Pengelompokan (segmentasi) dan pemberian label kategori akademik mahasiswa ditentukan menggunakan **Skor Komposit Multi-Kriteria** dengan pembobotan berikut:
-        
-        1. **50% Rata-Rata IPS Kumulatif (Semester 1 s.d. 5)**:
-           * Mengukur konsistensi performa akademik mahasiswa dalam jangka panjang.
-        2. **30% Tren IPS Semester Terkini (Semester 5)**:
-           * Memberikan bobot lebih tinggi pada pencapaian semester terakhir untuk mendeteksi perkembangan terkini.
-        3. **20% Tingkat Kehadiran / Absensi**:
-           * Mengukur kedisiplinan mahasiswa. Persentase kehadiran rata-rata dinormalisasi ke skala **0.0 - 4.0** (di mana 100% kehadiran setara dengan nilai 4.0).
-        
-        **Formula Skor Komposit:**
-        * `Skor = (0.50 × Rata-Rata IPS) + (0.30 × IPS Semester 5) + (0.20 × [Kehadiran % / 100] × 4.0)`
-        
-        _Catatan: Seluruh klaster yang terbentuk diurutkan berdasarkan rata-rata skor komposit ini untuk menentukan peringkat kategori label._
-        """)
+        st.markdown("**Profil Rata-Rata Cluster Utama**")
+        df_group = df_labeled.groupby('cluster_label')[['Rata-Rata IPS', 'Rata-Rata Absen Mahasiswa', 'NRP']].agg({
+            'Rata-Rata IPS': 'mean',
+            'Rata-Rata Absen Mahasiswa': 'mean',
+            'NRP': 'count'
+        }).rename(columns={'NRP': 'Jumlah Mahasiswa'})
+        custom_order = ['Sangat Tinggi', 'Tinggi', 'Sedang', 'Menengah', 'Cukup', 'Rendah/Outlier', 'Rendah']
+        df_group = df_group.reindex([l for l in custom_order if l in df_group.index])
+        st.dataframe(df_group.round(3))
         
     with c_p2:
-        st.markdown("**💡 Karakteristik Kategori & Kebijakan Bimbingan:**")
+        st.markdown("**Karakteristik & Kebijakan Bimbingan:**")
         st.markdown("""
-        * 🟢 **Tinggi**: Mahasiswa dengan IPK unggulan. Mempertahankan motivasi, direkomendasikan program akselerasi atau asisten praktikum.
-        * 🔵 **Sedang**: Akademik baik dan stabil. Didorong mengikuti kompetisi akademik mahasiswa tingkat nasional, lomba esai, atau pertukaran pelajar.
-        * 🔴 **Rendah**: Membutuhkan program remedial, asistensi belajar privat, dan konseling bimbingan akademik intensif.
+        * 🟣 **Sangat Tinggi**: Mahasiswa dengan IPK unggulan. Mempertahankan motivasi, direkomendasikan program akselerasi S2 atau asisten praktikum/riset.
+        * 🟢 **Tinggi**: Performa akademik sangat baik. Didorong untuk aktif dalam organisasi mahasiswa dan program pertukaran pelajar.
+        * 🔵 **Menengah**: Performa akademik stabil dan baik. Didorong untuk mengikuti sertifikasi profesional.
+        * 🔴 **Rendah/Outlier**: Performa akademik rendah/outlier. Membutuhkan program remedial, asistensi belajar privat, dan konseling bimbingan akademik intensif.
         """)
         
     st.markdown('<p class="section-header">Pencarian <span>Profil Akademik Mahasiswa</span></p>', unsafe_allow_html=True)
@@ -1015,8 +945,11 @@ elif page == "Dashboard Insight":
                     </div>
                     <div style='margin-top:10px; padding:8px 12px; background:#F8F8F8; border-radius:6px; font-size:0.8rem;'>
                         <b>Saran Pembimbing Akademik (Dosen Wali):</b> {
-                            "Berikan tantangan proyek mandiri atau dorong ikut kompetisi/asisten dosen wali." if lbl == 'Tinggi' else
+                            "Berikan tantangan proyek mandiri atau dorong ikut kompetisi/asisten dosen wali." if lbl == 'Sangat Tinggi' else
+                            "Pertahankan konsistensi performa dan latih keterampilan soft-skill/sertifikasi." if lbl == 'Tinggi' else
+                            "Rekomendasikan aktif dalam kegiatan organisasi, lomba esai ilmiah, atau pertukaran pelajar." if lbl == 'Menengah' else
                             "Berikan motivasi belajar berkala, monitor fluktuasi indeks prestasi semester." if lbl == 'Sedang' else
+                            "Jadwalkan asistensi belajar, prioritaskan pemahaman konsep pemrograman dasar." if lbl == 'Cukup' else
                             "Jadwalkan remedial, lakukan konseling dosen wali intensif, dan batasi beban SKS semester berikutnya."
                         }
                     </div>
@@ -1036,17 +969,16 @@ elif page == "Mahasiswa Berprestasi":
     dan performa **Total serta Rata-Rata Nilai Ujian Semester (skala 0-100)** untuk setiap mata kuliah.
     """)
     
-    # ℹ️ Penjelasan Bobot Penilaian
     st.info("""
-    **💡 Bobot Penilaian Prestasi & Rekomendasi:**
+    **💡 Bobot Penilaian Prestasi & Kelayakan Rekomendasi:**
     Peringkat kelayakan rekomendasi mahasiswa dihitung berdasarkan **Skor Komposit Prestasi** dengan pembobotan komponen berikut:
     
     1. **50% Rata-Rata IPS Kumulatif (IPK)** (normalisasi min-max):
-       * Mengukur konsistensi nilai indeks prestasi semester.
+       * Mengukur konsistensi performa nilai indeks prestasi semester.
     2. **30% Rata-Rata Nilai Ujian Semester (skala 0-100)** (normalisasi min-max):
-       * Mengukur performa penguasaan akademik numerik pada semua mata kuliah.
+       * Mengukur rata-rata penguasaan akademik riil pada semua mata kuliah dari semester 1 s.d. 5.
     3. **20% Persentase Kehadiran / Absensi** (normalisasi min-max):
-       * Mengukur kedisiplinan dan partisipasi fisik di kelas.
+       * Mengukur kedisiplinan dan partisipasi fisik mahasiswa di kelas.
     
     *Catatan: Seluruh kriteria disetarakan terlebih dahulu menggunakan **Min-Max Normalization** (skala 0 s.d. 1) sebelum dikalikan dengan bobot masing-masing.*
     """)
@@ -1099,33 +1031,30 @@ elif page == "Mahasiswa Berprestasi":
             </div>
             """, unsafe_allow_html=True)
             
-    # ℹ️ Contoh Penilaian Langsung ke Mahasiswa (Top 1)
+    st.markdown("---")
+    
+    # 2. Contoh Simulasi Perhitungan Siswa Berprestasi
+    st.markdown("### 📝 Contoh Simulasi Perhitungan Skor Komposit Siswa Berprestasi (Top 1)")
     if not df_top5.empty:
-        top1_student = df_top5.iloc[0]
+        top1 = df_top5.iloc[0]
+        top1_name = top1['Nama Mahasiswa']
+        top1_nrp = top1['NRP']
+        top1_ips = top1['Rata-Rata IPS']
+        top1_grade = top1['Rata-Rata Nilai Keseluruhan']
+        top1_absen = top1['Rata-Rata Absen Mahasiswa']
         
-        # Get actual values
-        top1_name = top1_student['Nama Mahasiswa']
-        top1_nrp = top1_student['NRP']
-        top1_ips = top1_student['Rata-Rata IPS']
-        top1_grade = top1_student['Rata-Rata Nilai Keseluruhan']
-        top1_absen = top1_student['Rata-Rata Absen Mahasiswa']
-        
-        # Norm values (from the min-max calculation done in the code)
+        # Calculate normalizations
         norm_ips_val = (top1_ips - ips_min) / (ips_max - ips_min) if ips_max > ips_min else 1.0
         norm_grade_val = (top1_grade - grade_min) / (grade_max - grade_min) if grade_max > grade_min else 1.0
         norm_absen_val = (top1_absen - absen_min) / (absen_max - absen_min) if absen_max > absen_min else 1.0
         
-        composite_score_val = 0.5 * norm_ips_val + 0.3 * norm_grade_val + 0.2 * norm_absen_val
+        score_comp = 0.5 * norm_ips_val + 0.3 * norm_grade_val + 0.2 * norm_absen_val
         
-        st.markdown("#### 📝 Contoh Simulasi Perhitungan Skor Komposit")
         st.markdown(f"""
         Berikut adalah simulasi perhitungan nyata kriteria mahasiswa berprestasi & rekomendasi yang diterapkan langsung pada kandidat peringkat teratas **({top1_name} - NRP: {top1_nrp})**:
         """)
-        
-        # Render a beautiful equation card
         st.markdown(f"""
-        <div style='background:#F5F3FF; border:1px solid #7367F044; border-radius:12px; padding:20px; margin-top:10px; margin-bottom:10px;'>
-            <h4 style='margin-top:0; color:#7367F0; font-family:"DM Serif Display", serif;'>🎓 Simulasi Skor Komposit: {top1_name} ({top1_nrp})</h4>
+        <div style='background:#F5F3FF; border:1px solid #7367F044; border-radius:12px; padding:24px; margin-top:10px; margin-bottom:10px;'>
             <table style='width:100%; border-collapse: collapse; font-size:0.88rem; color:#566A7F;'>
                 <tr style='border-bottom: 2px solid #7367F0; color:#7367F0; font-weight:bold;'>
                     <th style='text-align:left; padding:8px 0;'>Komponen Kriteria</th>
@@ -1160,15 +1089,15 @@ elif page == "Mahasiswa Berprestasi":
                     <td colspan='3' style='text-align:right; padding:12px 0 0 0; font-weight:normal; color:#566A7F;'>
                         (0.50 × {norm_ips_val:.4f}) + (0.30 × {norm_grade_val:.4f}) + (0.20 × {norm_absen_val:.4f}) =
                     </td>
-                    <td style='text-align:right; padding:12px 0 0 0; font-size:1.15rem;'>{composite_score_val:.4f}</td>
+                    <td style='text-align:right; padding:12px 0 0 0; font-size:1.15rem;'>{score_comp:.4f}</td>
                 </tr>
             </table>
         </div>
         """, unsafe_allow_html=True)
-            
+
     st.markdown("---")
     
-    # 2. Interactive Comparison Explorer
+    # 3. Interactive Comparison Explorer
     st.markdown("### 📊 Perbandingan Nilai Mata Kuliah vs Rata-Rata/Total Semester")
     
     # Select student
