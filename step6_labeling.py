@@ -55,7 +55,12 @@ def assign_labels(df, labels, feature_cols):
     rank_labels = {}
     n_clusters = len(sorted_clusters)
     
-    if n_clusters == 1:
+    if n_clusters == 4:
+        rank_labels[sorted_clusters[0]] = 'Sangat Tinggi'
+        rank_labels[sorted_clusters[1]] = 'Tinggi'
+        rank_labels[sorted_clusters[2]] = 'Menengah'
+        rank_labels[sorted_clusters[3]] = 'Rendah/Outlier'
+    elif n_clusters == 1:
         rank_labels[sorted_clusters[0]] = 'Tinggi'
     elif n_clusters == 2:
         rank_labels[sorted_clusters[0]] = 'Tinggi'
@@ -71,9 +76,10 @@ def assign_labels(df, labels, feature_cols):
 
     df['cluster_label'] = df['cluster'].map(rank_labels)
 
-    # Validation check: Tinggi > Sedang > Rendah
+    # Validation check: Sangat Tinggi > Tinggi > Sedang > Menengah > Rendah/Outlier > Rendah
     label_scores = {}
-    for lbl in ['Tinggi', 'Sedang', 'Rendah']:
+    all_possible_labels = ['Sangat Tinggi', 'Tinggi', 'Sedang', 'Menengah', 'Rendah/Outlier', 'Rendah']
+    for lbl in all_possible_labels:
         sub = df[df['cluster_label'] == lbl]
         if len(sub) > 0:
             ips_cum = sub['Rata-Rata IPS'].mean() if 'Rata-Rata IPS' in df.columns else 0.0
@@ -93,27 +99,28 @@ def assign_labels(df, labels, feature_cols):
             label_scores[lbl] = None
 
     print("\n[Validation] Average Composite Scores by Label:")
-    for lbl, score in label_scores.items():
-        score_str = f"{score:.4f}" if score is not None else "N/A"
-        print(f"  {lbl}: {score_str}")
+    for lbl in all_possible_labels:
+        if label_scores[lbl] is not None:
+            print(f"  {lbl}: {label_scores[lbl]:.4f}")
 
     # Check monotonicity
     valid = True
-    if label_scores['Tinggi'] is not None and label_scores['Sedang'] is not None and label_scores['Tinggi'] <= label_scores['Sedang']:
-        valid = False
-    if label_scores['Sedang'] is not None and label_scores['Rendah'] is not None and label_scores['Sedang'] <= label_scores['Rendah']:
-        valid = False
-    if label_scores['Tinggi'] is not None and label_scores['Rendah'] is not None and label_scores['Tinggi'] <= label_scores['Rendah']:
-        valid = False
+    present_labels = [l for l in all_possible_labels if label_scores[l] is not None]
+    for i in range(len(present_labels) - 1):
+        for j in range(i + 1, len(present_labels)):
+            l1, l2 = present_labels[i], present_labels[j]
+            if label_scores[l1] <= label_scores[l2]:
+                valid = False
 
     if not valid:
-        print("\n[WARNING] INKONSISTENSI DETEKSI: Urutan skor komposit tidak konsisten (Tinggi <= Sedang atau Sedang <= Rendah)!")
+        print("\n[WARNING] INKONSISTENSI DETEKSI: Urutan skor komposit tidak konsisten sesuai hirarki akademis!")
     else:
-        print("\n[OK] VALIDASI BERHASIL: Skor komposit konsisten (Tinggi > Sedang > Rendah).")
+        print("\n[OK] VALIDASI BERHASIL: Skor komposit konsisten sesuai urutan hirarki akademis.")
         # Assert to guarantee correctness
-        assert (label_scores['Sedang'] is None or label_scores['Tinggi'] > label_scores['Sedang']), "Tinggi must be greater than Sedang"
-        assert (label_scores['Sedang'] is None or label_scores['Rendah'] is None or label_scores['Sedang'] > label_scores['Rendah']), "Sedang must be greater than Rendah"
-        assert (label_scores['Rendah'] is None or label_scores['Tinggi'] > label_scores['Rendah']), "Tinggi must be greater than Rendah"
+        for i in range(len(present_labels) - 1):
+            for j in range(i + 1, len(present_labels)):
+                l1, l2 = present_labels[i], present_labels[j]
+                assert label_scores[l1] > label_scores[l2], f"{l1} must be greater than {l2}"
 
     # Print scoring details
     print("\n[Label] Composite Score (50% IPS kum + 30% IPS Sem 5 + 20% Absensi):")
@@ -138,7 +145,8 @@ def profile_clusters(df, feature_cols):
     if absen_cols: rep_cols.append(absen_cols[0])
     
     profile = grouped[feature_cols].mean()
-    profile['jumlah_mahasiswa'] = grouped['NRP'].count()
+    count_col = 'NRP' if 'NRP' in df.columns else df.columns[0]
+    profile['jumlah_mahasiswa'] = grouped[count_col].count()
     
     print("\n[Label] Distribusi Cluster:")
     print(df['cluster_label'].value_counts().to_string())
