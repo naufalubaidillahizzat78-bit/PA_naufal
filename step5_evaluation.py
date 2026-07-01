@@ -114,43 +114,59 @@ def plot_evaluation_lines(df_results):
 
 def select_best_model(df_results):
     """
-    Pilih model terbaik berdasarkan kriteria user:
-    - Silhouette Coefficient >= 0.3 (minimum)
-    - BSS/TSS ratio >= 50% (sebaiknya >= 75%)
-    - Jika tidak ada model dengan silhouette >= 0.3, pilih yang memiliki BSS/TSS >= 50% 
-      dengan Silhouette tertinggi.
+    Pilih model terbaik berdasarkan kriteria:
+    - User request: FCM dengan k=4 terpilih sebagai model terbaik.
+    - Fallback ke Silhouette tertinggi & BSS/TSS >= 50% jika FCM k=4 tidak ada.
     """
-    # 1. Filter candidates with silhouette >= 0.3
-    candidates = df_results[df_results['silhouette'] >= 0.3].copy()
+    df = df_results.copy()
     
-    if not candidates.empty:
-        # Prioritize BSS/TSS >= 75%
-        good_bss_75 = candidates[candidates['bss_tss_ratio'] >= 75]
-        if not good_bss_75.empty:
-            best = good_bss_75.sort_values('silhouette', ascending=False).iloc[0]
-        else:
-            # Fallback to BSS/TSS >= 50%
-            good_bss_50 = candidates[candidates['bss_tss_ratio'] >= 50]
-            if not good_bss_50.empty:
-                best = good_bss_50.sort_values('silhouette', ascending=False).iloc[0]
-            else:
-                best = candidates.sort_values('silhouette', ascending=False).iloc[0]
+    # Cari model FCM dengan k=4
+    fcm_k4 = df[(df['method'] == 'FCM') & (df['k'] == 4)]
+    if not fcm_k4.empty:
+        best = fcm_k4.iloc[0]
+        print("[Eval] Memilih model FCM k=4 sebagai model terbaik sesuai request user.")
     else:
-        print("[Eval] [WARN] Tidak ada model dengan Silhouette >= 0.3. Menerapkan relaksasi pencarian...")
-        # 2. Relieve silhouette constraint, look for BSS/TSS >= 50% first
-        # Try BSS/TSS >= 75%
-        good_bss_75 = df_results[df_results['bss_tss_ratio'] >= 75].copy()
-        if not good_bss_75.empty:
-            best = good_bss_75.sort_values('silhouette', ascending=False).iloc[0]
-        else:
-            # Try BSS/TSS >= 50%
-            good_bss_50 = df_results[df_results['bss_tss_ratio'] >= 50].copy()
-            if not good_bss_50.empty:
-                best = good_bss_50.sort_values('silhouette', ascending=False).iloc[0]
+        # Fallback jika tidak ditemukan
+        print("[Eval] FCM k=4 tidak ditemukan, melakukan pemilihan otomatis...")
+        METHOD_PRIORITY = {
+            'K-Means'  : 1,
+            'K-Medoids': 2,
+            'FCM'      : 3,
+            'FPCM'     : 4,
+            'MFPCM'    : 5,
+            'PCM'      : 6,
+            'DBSCAN'   : 7,
+        }
+        df['_priority'] = df['method'].map(METHOD_PRIORITY).fillna(99)
+
+        def sort_and_pick(subset):
+            return subset.sort_values(
+                ['silhouette', 'bss_tss_ratio', '_priority'],
+                ascending=[False, False, True]
+            ).iloc[0]
+
+        candidates = df[df['silhouette'] >= 0.3].copy()
+        if not candidates.empty:
+            good_bss_75 = candidates[candidates['bss_tss_ratio'] >= 75]
+            if not good_bss_75.empty:
+                best = sort_and_pick(good_bss_75)
             else:
-                # Absolute fallback
-                best = df_results.sort_values('silhouette', ascending=False).iloc[0]
-                
+                good_bss_50 = candidates[candidates['bss_tss_ratio'] >= 50]
+                if not good_bss_50.empty:
+                    best = sort_and_pick(good_bss_50)
+                else:
+                    best = sort_and_pick(candidates)
+        else:
+            good_bss_75 = df[df['bss_tss_ratio'] >= 75].copy()
+            if not good_bss_75.empty:
+                best = sort_and_pick(good_bss_75)
+            else:
+                good_bss_50 = df[df['bss_tss_ratio'] >= 50].copy()
+                if not good_bss_50.empty:
+                    best = sort_and_pick(good_bss_50)
+                else:
+                    best = sort_and_pick(df)
+
     print("\n" + "="*60)
     print("MODEL TERBAIK TERPILIH (OPTIMAL SELECTION):")
     print(f"  Method    : {best['method']}")
@@ -159,9 +175,13 @@ def select_best_model(df_results):
     print(f"  Silhouette: {best['silhouette']:.4f}")
     print(f"  BSS/TSS   : {best['bss_tss_ratio']:.2f}%")
     print("="*60)
-    
-    pd.Series(best).to_pickle('output/best_model.pkl')
-    return best
+
+    # Save to best_model.pkl without target '_priority' key if present
+    best_series = pd.Series(best)
+    if '_priority' in best_series.index:
+        best_series = best_series.drop('_priority')
+    best_series.to_pickle('output/best_model.pkl')
+    return best_series
 
 def run_evaluation(results_path='output/clustering_results.pkl', 
                    label_store_path='output/label_store.pkl',
@@ -202,7 +222,13 @@ def run_evaluation(results_path='output/clustering_results.pkl',
     excel_path = 'hasil_clustering.xlsx'
     
     # Base columns for student assignment sheets
-    student_base = df[['NRP', 'Nama Mahasiswa']].copy()
+    # Base columns for student assignment sheets
+    id_candidates = ['NRP', 'Nama Mahasiswa']
+    id_present = [c for c in id_candidates if c in df.columns]
+    if id_present:
+        student_base = df[id_present].copy()
+    else:
+        student_base = pd.DataFrame({'ID': range(len(df))})
     
     # Dict to hold sheets data
     sheets = {}
